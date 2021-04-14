@@ -31,7 +31,7 @@ if __name__ == '__main__':
     args, _ = parser.parse_known_args()
     odom_topic = args.odom_topic
     
-    rospy.init_node('publish_odometry_transformation')
+    rospy.init_node('publish_odometry_transform')
     tfBroadcaster = tf2_ros.TransformBroadcaster()
     tfBuffer = tf2_ros.Buffer()
     tfListener = tf2_ros.TransformListener(tfBuffer)
