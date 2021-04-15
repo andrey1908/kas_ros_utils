@@ -73,6 +73,8 @@ def odom_received(odom):
 
 
 if __name__ == '__main__':
+    raise(RuntimeError, "Algorythm to convert odometry is wrong. It needs to be changed!\n")
+    exit(0)
     parser = build_parser()
     args, _ = parser.parse_known_args()
     in_odom_topic = args.in_odom_topic
