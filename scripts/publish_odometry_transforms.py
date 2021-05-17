@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 import rospy
 from nav_msgs.msg import Odometry
+from geometry_msgs.msg import *
 import tf2_ros
-import tf2_geometry_msgs
-import geometry_msgs.msg
-import sys
 import argparse
+from copy import deepcopy
 
 
 def build_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--odom-topic', required=True, type=str)
+    parser.add_argument('-odom', '--odom-topic', required=True, type=str)
     return parser
 
 
@@ -18,12 +17,11 @@ def odom_received(odom):
     global tfBroadcaster
     global tfBuffer
 
-    odom_trans = geometry_msgs.msg.TransformStamped()
-    odom_trans.header = odom.header
-    odom_trans.child_frame_id = odom.child_frame_id
-    odom_trans.transform.translation = odom.pose.pose.position
-    odom_trans.transform.rotation = odom.pose.pose.orientation
-    tfBroadcaster.sendTransform(odom_trans)
+    position = odom.pose.pose.position
+    orientation = odom.pose.pose.orientation
+    transform = TransformStamped(deepcopy(odom.header), odom.child_frame_id,
+                                 Transform(Vector3(position.x, position.y, position.z), deepcopy(orientation)))
+    tfBroadcaster.sendTransform(transform)
 
 
 if __name__ == '__main__':
