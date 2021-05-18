@@ -58,9 +58,6 @@ def ros_twist_to_matrix(ros_twist):
 
 
 def odom_received(odom):
-    odom.child_frame_id = 'zed_left_camera_optical_frame'
-    odom.header.frame_id = 'odom'
-
     global target_child_frame
     global new_odom_frame
     global publish_odometry_transforms
