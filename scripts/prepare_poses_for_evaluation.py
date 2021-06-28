@@ -24,12 +24,12 @@ def build_parser():
     parser.add_argument('-res-bag', '--results-rosbag-file', required=True, type=str, help=".bag file with SLAM trajectory")
     parser.add_argument('-res-topic', '--results-topic', required=True, type=str, help="topic to read SLAM trajectory")
 
-    parser.add_argument('-transforms-source', '--transforms-source-file', type=str)
+    parser.add_argument('-transforms-source', '--transforms-source-file', type=str, help=".bag or .urdf file to read static transforms from if needed")
 
     parser.add_argument('-out-gt', '--out-gt-file', required=True, type=str, help="output file with gt poses in kitti format")
     parser.add_argument('-out-res', '--out-results-file', required=True, type=str, help="output file with SLAM poses in kitti format")
 
-    parser.add_argument('-out-paths', '--out-paths-file', type=str)
+    parser.add_argument('-out-paths', '--out-paths-file', type=str, help="output .bag file to write gt and SLAM paths")
     return parser
 
 
