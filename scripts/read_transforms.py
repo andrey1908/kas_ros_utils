@@ -24,7 +24,7 @@ def read_transforms(from_frame, to_frame, rate, out_bag_file, out_topic_name):
         print("Recording...")
         while not rospy.is_shutdown():
             try:
-                transform = tfBuffer.lookup_transform(from_frame, to_frame, rospy.Time())
+                transform = tf_buffer.lookup_transform(from_frame, to_frame, rospy.Time())
             except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException):
                 try:
                     r.sleep()
@@ -48,6 +48,6 @@ if __name__ == '__main__':
     args, _ = parser.parse_known_args()
     
     rospy.init_node('read_transforms')
-    tfBuffer = tf2_ros.Buffer()
-    tfListener = tf2_ros.TransformListener(tfBuffer)
+    tf_buffer = tf2_ros.Buffer()
+    tf_listener = tf2_ros.TransformListener(tf_buffer)
     read_transforms(**vars(args))
