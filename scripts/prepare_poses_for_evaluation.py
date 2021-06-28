@@ -118,6 +118,21 @@ def prepare_poses_for_evaluation(gt_rosbag_file, gt_topic, results_rosbag_file, 
     results_timestamps = np.array(results_timestamps)
     results_poses = np.array(results_poses)
 
+    print("Finding mutual indexes for poses...")
+    gt_indexes, results_indexes = find_mutual_indexes(gt_timestamps, results_timestamps)
+    if not is_ascending(gt_indexes):
+        raise(RuntimeError)
+    if not is_ascending(results_indexes):
+        raise(RuntimeError)
+    print_info(gt_timestamps, gt_indexes, results_timestamps, results_indexes)
+
+    print("Getting poses with mutual indexes...")
+    gt_poses = gt_poses[gt_indexes]
+    gt_timestamps = gt_timestamps[gt_indexes]
+    results_poses = results_poses[results_indexes]
+    results_timestamps = results_timestamps[results_indexes]
+
+    print("Moving poses to the origin...")
     move_first_pose_to_the_origin(gt_poses)
     move_first_pose_to_the_origin(results_poses)
 
@@ -129,22 +144,15 @@ def prepare_poses_for_evaluation(gt_rosbag_file, gt_topic, results_rosbag_file, 
         fill_tf_buffer_with_static_transforms_from_file(transforms_source_file, tf_buffer)
         ros_transform = tf_buffer.lookup_transform(results_child_frame_id, gt_child_frame_id, rospy.Time())
         transform = ros_msg_to_matrix(ros_transform)
+        print("Transforming SLAM poses to gt frame...")
         transform_poses(results_poses, transform)
 
-    print("Finding mutual indexes for poses...")
-    gt_indexes, results_indexes = find_mutual_indexes(gt_timestamps, results_timestamps)
-    if not is_ascending(gt_indexes):
-        raise(RuntimeError)
-    if not is_ascending(results_indexes):
-        raise(RuntimeError)
-    print_info(gt_timestamps, gt_indexes, results_timestamps, results_indexes)
-
-    print("Write poses in kitti format")
-    write_poses(out_gt_file, gt_poses[gt_indexes])
-    write_poses(out_results_file, results_poses[results_indexes])
+    print("Writing poses in kitti format...")
+    write_poses(out_gt_file, gt_poses)
+    write_poses(out_results_file, results_poses)
 
     if out_paths_file:
-        print("Write trajectories in rosbag")
+        print("Writing trajectories in rosbag...")
         gt_path = poses_to_ros_path(gt_poses, gt_timestamps)
         results_path = poses_to_ros_path(results_poses, results_timestamps)
         with rosbag.Bag(out_paths_file, 'w') as out_bag:
