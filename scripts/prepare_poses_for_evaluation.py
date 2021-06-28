@@ -43,39 +43,46 @@ def is_ascending(list):
 
 
 def find_mutual_indexes(A, B, max_error=0.01):
+    # Ascending order is needed for faster filling matching_results variable.
     if not is_ascending(A):
         raise(RuntimeError)
     if not is_ascending(B):
         raise(RuntimeError)
 
-    swapped = False
-    if len(A) > len(B):
-        A, B = B, A
-        swapped = True
+    matching_results = list()
+    start_B_index = 0
+    for A_index in range(len(A)):
+        while A[A_index] - B[start_B_index] > max_error:
+            start_B_index += 1
+            if start_B_index == len(B):
+                break
+        if start_B_index == len(B):
+            break
+        B_index = start_B_index
+        while B[B_index] - A[A_index] <= max_error:
+            matching_results.append((abs(A[A_index] - B[B_index]), A_index, B_index))
+            B_index += 1
+            if B_index == len(B):
+                break
 
-    begin = max(A[0], B[0])
-    end = min(A[-1], B[-1])
-    
+    matching_results.sort()
+
+    matched_A_indexes = set()
+    matched_B_indexes = set()
     A_indexes = list()
     B_indexes = list()
-    discarded_due_to_large_error = 0
-    for A_index, a in enumerate(A):
-        B_index = np.argmin(np.abs(B - a))
-        b = B[B_index]
-        if (a < begin) or (b < begin):
+    for matching_result in matching_results:
+        A_index = matching_result[1]
+        B_index = matching_result[2]
+        if (A_index in matched_A_indexes) or (B_index in matched_B_indexes):
             continue
-        if (a > end) or (b > end):
-            break
-        if abs(a - b) > max_error:
-            discarded_due_to_large_error += 1
-            continue
+        matched_A_indexes.add(A_index)
+        matched_B_indexes.add(B_index)
         A_indexes.append(A_index)
         B_indexes.append(B_index)
 
-    print('Number of discarded indexes due to large error: {}'.format(discarded_due_to_large_error))
-    if swapped:
-        A, B = B, A
-        A_indexes, B_indexes = B_indexes, A_indexes
+    A_indexes, B_indexes = map(list, zip(*sorted(zip(A_indexes, B_indexes))))
+    
     print('Found {} mutual indexes in arrays with {} and {} elements'.format(len(A_indexes), len(A), len(B)))
     return A_indexes, B_indexes
 

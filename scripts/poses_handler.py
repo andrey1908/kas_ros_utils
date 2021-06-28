@@ -66,7 +66,7 @@ def move_first_pose_to_the_origin(poses):
         poses[i] = first_pose_inv @ poses[i]
 
 
-# transform moves frame that is used now to desired frame
+# 'transform' should move frame that is used now to desired frame
 def transform_poses(poses, transform):
     transform_inv = np.linalg.inv(transform)
     for i in range(len(poses)):
