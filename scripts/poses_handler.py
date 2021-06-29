@@ -50,7 +50,7 @@ def read_poses(bag, topic, use_tqdm=False):
                 raise(RuntimeError)
         else:
             frame_id = msg.header.frame_id
-        timestamps.append(msg.header.stamp.to_sec())
+        timestamps.append(msg.header.stamp)
         poses.append(ros_msg_to_matrix(msg))
     return timestamps, poses, frame_id, child_frame_id
 
@@ -88,11 +88,11 @@ def write_poses(out_file, poses):
 def poses_to_ros_path(poses, timestamps):
     path = Path()
     path.header.frame_id = 'map'
-    path.header.stamp = rospy.Time.from_sec(timestamps[0])
+    path.header.stamp = timestamps[0]
     for pose, timestamp in zip(poses, timestamps):
         ros_pose = matrix_to_ros_pose(pose)
         pose_stamped = PoseStamped(pose=ros_pose)
         pose_stamped.header.frame_id = 'map'
-        pose_stamped.header.stamp = rospy.Time.from_sec(timestamp)
+        pose_stamped.header.stamp = timestamp
         path.poses.append(pose_stamped)
     return path

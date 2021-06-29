@@ -1,15 +1,9 @@
 #!/usr/bin/env python3
-from math import e
 import rosbag
 import rospy
-from nav_msgs.msg import Path
-from geometry_msgs.msg import PoseStamped, Pose
 import tf2_ros
 from matplotlib import pyplot as plt
-from tqdm import tqdm
 import argparse
-import numpy as np
-from transforms3d.quaternions import quat2mat, mat2quat
 import numpy as np
 from static_transforms_reader import fill_tf_buffer_with_static_transforms_from_file
 from poses_handler import read_poses_from_bag_file, move_first_pose_to_the_origin, transform_poses, write_poses, poses_to_ros_path, \
@@ -52,15 +46,15 @@ def find_mutual_indexes(A, B, max_error=0.01):
     matching_results = list()
     start_B_index = 0
     for A_index in range(len(A)):
-        while A[A_index] - B[start_B_index] > max_error:
+        while (A[A_index] - B[start_B_index]).to_sec() > max_error:
             start_B_index += 1
             if start_B_index == len(B):
                 break
         if start_B_index == len(B):
             break
         B_index = start_B_index
-        while B[B_index] - A[A_index] <= max_error:
-            matching_results.append((abs(A[A_index] - B[B_index]), A_index, B_index))
+        while (B[B_index] - A[A_index]).to_sec() <= max_error:
+            matching_results.append((abs((A[A_index] - B[B_index]).to_sec()), A_index, B_index))
             B_index += 1
             if B_index == len(B):
                 break
@@ -88,6 +82,9 @@ def find_mutual_indexes(A, B, max_error=0.01):
 
 
 def print_info(gt_timestamps, gt_indexes, results_timestamps, results_indexes):
+    gt_timestamps = np.array(list(map(lambda x: x.to_sec(), gt_timestamps)))
+    results_timestamps = np.array(list(map(lambda x: x.to_sec(), results_timestamps)))
+
     gt_indexed_timestamps = gt_timestamps[gt_indexes]
     results_indexed_timestamps = results_timestamps[results_indexes]
 
