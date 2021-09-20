@@ -29,7 +29,7 @@ def pass_through_bag(in_rosbag_file, out_rosbag_file, topics_to_make_sparser=Non
     if k is None:
         raise RuntimeError("-k in not set\n")
     with rosbag.Bag(out_rosbag_file, 'w') as outbag:
-        inbag = rosbag.Bag(in_rosbag_file, 'r')
+        inbag = rosbag.Bag(in_rosbag_file)
         messages_reader = inbag.read_messages(topics=topics)
         total_number = inbag.get_message_count(topic_filters=topics)
         counters = dict()
