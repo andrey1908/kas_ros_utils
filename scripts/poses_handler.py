@@ -55,9 +55,22 @@ def read_poses(bag, topic, use_tqdm=False):
     return timestamps, poses, frame_id, child_frame_id
 
 
-def read_poses_from_bag_file(rosbag_file, topic, use_tqdm=False):
-    with rosbag.Bag(rosbag_file) as bag:
-        return read_poses(bag, topic, use_tqdm=use_tqdm)
+def read_poses_from_bag_files(rosbag_files, topic, use_tqdm=False):
+    combined_timestamps = list()
+    combined_poses = list()
+    prev_frame_id = None
+    prev_child_frame_id = None
+    for rosbag_file in rosbag_files:
+        with rosbag.Bag(rosbag_file) as bag:
+            timestamps, poses, frame_id, child_frame_id = read_poses(bag, topic, use_tqdm=use_tqdm)
+            combined_timestamps += timestamps
+            combined_poses += poses
+            if prev_frame_id is not None:
+                if (prev_frame_id != frame_id) or (prev_child_frame_id != child_frame_id):
+                    raise RuntimeError()
+            prev_frame_id = frame_id
+            prev_child_frame_id = child_frame_id
+    return combined_timestamps, combined_poses, frame_id, child_frame_id
 
 
 def move_first_pose_to_the_origin(poses):

@@ -5,17 +5,17 @@ import tf2_ros
 import argparse
 import numpy as np
 from static_transforms_reader import fill_tf_buffer_with_static_transforms_from_file
-from poses_handler import read_poses_from_bag_file, move_first_pose_to_the_origin, transform_poses, write_poses, poses_to_ros_path, \
+from poses_handler import read_poses_from_bag_files, move_first_pose_to_the_origin, transform_poses, write_poses, poses_to_ros_path, \
     ros_msg_to_matrix
 
 
 def build_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-gt-bag', '--gt-rosbag-file', required=True, type=str, help=".bag file with gt poses")
+    parser.add_argument('-gt-bags', '--gt-rosbag-files', required=True, type=str, nargs='+', help=".bag files with gt poses")
     parser.add_argument('-gt-topic', '--gt-topic', required=True, type=str, help="topic to read gt poses")
 
-    parser.add_argument('-res-bag', '--results-rosbag-file', required=True, type=str, help=".bag file with SLAM trajectory")
-    parser.add_argument('-res-topic', '--results-topic', required=True, type=str, help="topic to read SLAM trajectory")
+    parser.add_argument('-res-bags', '--results-rosbag-files', required=True, type=str, nargs='+', help=".bag files with SLAM poses")
+    parser.add_argument('-res-topic', '--results-topic', required=True, type=str, help="topic to read SLAM poses")
 
     parser.add_argument('-out-gt', '--out-gt-file', required=True, type=str, help="output file with gt poses in kitti format")
     parser.add_argument('-out-res', '--out-results-file', required=True, type=str, help="output file with SLAM poses in kitti format")
@@ -109,12 +109,12 @@ def check_step(A, B, max_step=0.7):
     assert(step <= max_step)
 
 
-def prepare_poses_for_evaluation(gt_rosbag_file, gt_topic, results_rosbag_file, results_topic,
+def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files, results_topic,
                                  out_gt_file, out_results_file, transforms_source_file=None, out_trajectories_rosbag_file=None,
                                  max_union_intersection_time_difference=0.9, max_time_error=0.01, max_time_step=0.7):
     print("Extracting poses...")
-    gt_timestamps, gt_poses, _, gt_child_frame_id = read_poses_from_bag_file(gt_rosbag_file, gt_topic, use_tqdm=True)
-    results_timestamps, results_poses, _, results_child_frame_id = read_poses_from_bag_file(results_rosbag_file, results_topic, use_tqdm=True)
+    gt_timestamps, gt_poses, _, gt_child_frame_id = read_poses_from_bag_files(gt_rosbag_files, gt_topic, use_tqdm=True)
+    results_timestamps, results_poses, _, results_child_frame_id = read_poses_from_bag_files(results_rosbag_files, results_topic, use_tqdm=True)
     if not is_ascending(gt_timestamps):
         raise(RuntimeError)
     if not is_ascending(results_timestamps):
