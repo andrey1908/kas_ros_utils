@@ -13,8 +13,8 @@ from copy import deepcopy
 def build_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('-odom', '--odom-topic', required=True, type=str)
-    parser.add_argument('--target-child-frame', required=True, type=str)
     parser.add_argument('--new-odom-frame', required=True, type=str)
+    parser.add_argument('--new-child-frame', required=True, type=str)
     parser.add_argument('-out-odom', '--out-odom-topic', type=str, default=None)
     parser.add_argument('-pub-tf', '--publish-odometry-transforms', action='store_true')
     parser.add_argument('-dv', '--drift-vector', type=float, nargs=3, default=[0., 0., 0.])
@@ -58,7 +58,7 @@ def ros_twist_to_matrix(ros_twist):
 
 
 def odom_received(odom):
-    global target_child_frame
+    global new_child_frame
     global new_odom_frame
     global publish_odometry_transforms
     global drift_vector
@@ -68,7 +68,7 @@ def odom_received(odom):
     global odom_publisher
     global first_stamp
 
-    ros_transform = tfBuffer.lookup_transform(target_child_frame, odom.child_frame_id, odom.header.stamp)
+    ros_transform = tfBuffer.lookup_transform(new_child_frame, odom.child_frame_id, odom.header.stamp)
 
     transform = ros_transform_to_matrix(ros_transform)
     pose = ros_pose_to_matrix(odom.pose.pose)
@@ -90,7 +90,7 @@ def odom_received(odom):
     if odom_publisher is not None:
         new_odom = Odometry(header=deepcopy(odom.header))
         new_odom.header.frame_id = new_odom_frame
-        new_odom.child_frame_id = target_child_frame
+        new_odom.child_frame_id = new_child_frame
         new_odom.pose = PoseWithCovariance(pose=Pose(Point(new_position[0], new_position[1], new_position[2]),
                                                      Quaternion(new_orientation[1], new_orientation[2], new_orientation[3], new_orientation[0])))
         new_odom.twist = TwistWithCovariance(twist=Twist(Vector3(new_linear[0], new_linear[1], new_linear[2]),
@@ -100,7 +100,7 @@ def odom_received(odom):
     if publish_odometry_transforms:
         transform = TransformStamped(header=deepcopy(odom.header))
         transform.header.frame_id = new_odom_frame
-        transform.child_frame_id = target_child_frame
+        transform.child_frame_id = new_child_frame
         transform.transform = Transform(Vector3(new_position[0], new_position[1], new_position[2]),
                                         Quaternion(new_orientation[1], new_orientation[2], new_orientation[3], new_orientation[0]))
         tfBroadcaster.sendTransform(transform)
@@ -110,7 +110,7 @@ if __name__ == '__main__':
     parser = build_parser()
     args, _ = parser.parse_known_args()
     odom_topic = args.odom_topic
-    target_child_frame = args.target_child_frame
+    new_child_frame = args.new_child_frame
     new_odom_frame = args.new_odom_frame
     out_odom_topic = args.out_odom_topic
     publish_odometry_transforms = args.publish_odometry_transforms
