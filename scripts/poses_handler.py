@@ -56,6 +56,8 @@ def read_poses(bag, topic, use_tqdm=False):
 
 
 def read_poses_from_bag_files(rosbag_files, topic, use_tqdm=False):
+    if isinstance(rosbag_files, str):
+        rosbag_files = [rosbag_files]
     combined_timestamps = list()
     combined_poses = list()
     prev_frame_id = None
