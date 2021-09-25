@@ -20,7 +20,7 @@ def build_parser():
     parser.add_argument('-out-gt', '--out-gt-file', required=True, type=str, help="output file with gt poses in kitti format")
     parser.add_argument('-out-res', '--out-results-file', required=True, type=str, help="output file with SLAM poses in kitti format")
 
-    parser.add_argument('-transforms-source', '--transforms-source-file', type=str, help=".bag or .urdf file to read static transforms from if needed")
+    parser.add_argument('-transforms-source', '--transforms-source-file', type=str, help=".bag, .urdf or .launch file to read static transforms from if needed")
     parser.add_argument('-out-trajectories', '--out-trajectories-rosbag-file', type=str, help="output .bag file to write gt and SLAM trajectories")
 
     parser.add_argument('--max-union-intersection-time-difference', type=float, default=0.9, help="Max difference between union and intersection or time ragnes where gt and SLAM poses are set.")
@@ -113,6 +113,10 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
                                  out_gt_file, out_results_file, transforms_source_file=None, out_trajectories_rosbag_file=None,
                                  max_union_intersection_time_difference=0.9, max_time_error=0.01, max_time_step=0.7):
     print("Extracting poses...")
+    if isinstance(gt_rosbag_files, str):
+        gt_rosbag_files = [gt_rosbag_files]
+    if isinstance(results_rosbag_files, str):
+        results_rosbag_files = [results_rosbag_files]
     gt_timestamps, gt_poses, _, gt_child_frame_id = read_poses_from_bag_files(gt_rosbag_files, gt_topic, use_tqdm=True)
     results_timestamps, results_poses, _, results_child_frame_id = read_poses_from_bag_files(results_rosbag_files, results_topic, use_tqdm=True)
     if not is_ascending(gt_timestamps):
