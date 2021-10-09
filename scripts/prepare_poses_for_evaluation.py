@@ -50,6 +50,27 @@ def check_union_intersection_difference(A, B, max_difference=0.9):
     assert(union - intersection <= max_difference)
 
 
+def find_boundaries_indexes(array, value):
+    if len(array) == 0:
+        raise RuntimeError()
+    lower = None
+    lower_min_difference = -1
+    upper = None
+    upper_min_difference = -1
+    for i in range(len(array)):
+        if array[i] == value:
+            raise RuntimeError()
+        if array[i] < value:
+            if lower_min_difference > value - array[i] or lower_min_difference < 0:
+                lower = i
+                lower_min_difference = value - array[i]
+        if array[i] > value:
+            if upper_min_difference > array[i] - value or upper_min_difference < 0:
+                upper = i
+                upper_min_difference = array[i] - value
+    return lower, upper
+
+
 def find_mutual_indexes(A, B, max_error=0.01):
     # Ascending order is needed for faster filling matching_results variable.
     if not is_ascending(A):
@@ -85,6 +106,16 @@ def find_mutual_indexes(A, B, max_error=0.01):
         B_index = matching_result[2]
         if (A_index in matched_A_indexes) or (B_index in matched_B_indexes):
             continue
+        if len(A_indexes) > 0:
+            lower, upper = find_boundaries_indexes(A_indexes, A_index)
+            lower_B_condition = True
+            upper_B_condition = True
+            if lower is not None:
+                lower_B_condition = B_indexes[lower] < B_index
+            if upper is not None:
+                upper_B_condition = B_indexes[upper] > B_index
+            if not lower_B_condition or not upper_B_condition:
+                continue
         matched_A_indexes.add(A_index)
         matched_B_indexes.add(B_index)
         A_indexes.append(A_index)
