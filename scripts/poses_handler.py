@@ -1,33 +1,18 @@
 from tqdm import tqdm
-from transforms3d.quaternions import quat2mat, mat2quat
 import numpy as np
 import rosbag
-from geometry_msgs.msg import Pose, PoseStamped
+from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path
-import rospy
+from tf_conversions import fromTf, fromMsg, toMsg, fromMatrix, toMatrix
 
 
-def to_matrix(Q, T):
-    M = np.zeros((4, 4))
-    M[:3, :3] = quat2mat([Q.w, Q.x, Q.y, Q.z])
-    M[:3, 3] = [T.x, T.y, T.z]
-    M[3, 3] = 1
-    return M
-
-
-def ros_msg_to_matrix(ros_msg):
-    if hasattr(ros_msg, 'pose'):
-        return to_matrix(ros_msg.pose.pose.orientation, ros_msg.pose.pose.position)
-    if hasattr(ros_msg, 'transform'):
-        return to_matrix(ros_msg.transform.rotation, ros_msg.transform.translation)
-    raise(TypeError("Unknown type {}".format(type(ros_msg))))
-
-
-def matrix_to_ros_pose(M):
-    ros_pose = Pose()
-    ros_pose.position.x, ros_pose.position.y, ros_pose.position.z = M[:3, 3]
-    ros_pose.orientation.w, ros_pose.orientation.x, ros_pose.orientation.y, ros_pose.orientation.z = mat2quat(M[:3, :3])
-    return ros_pose
+def ros_message_to_matrix(ros_message):
+    if ros_message._type == 'geometry_msgs/TransformStamped':
+        return toMatrix(fromTf(((ros_message.transform.translation.x, ros_message.transform.translation.y, ros_message.transform.translation.z), \
+            (ros_message.transform.rotation.x, ros_message.transform.rotation.y, ros_message.transform.rotation.z, ros_message.transform.rotation.w))))
+    if ros_message._type == 'nav_msgs/Odometry':
+        return toMatrix(fromMsg(ros_message.pose.pose))
+    raise TypeError("Unknown type {}".format(type(ros_message)))
 
 
 def read_poses(bag, topic, use_tqdm=False):
@@ -39,19 +24,19 @@ def read_poses(bag, topic, use_tqdm=False):
         bag_reader = tqdm(bag.read_messages(topics=[topic]), total=bag.get_message_count(topic_filters=[topic]))
     else:
         bag_reader = bag.read_messages(topics=[topic])
-    for tpc, msg, t in bag_reader:
+    for _, msg, t in bag_reader:
         if child_frame_id:
             if child_frame_id != msg.child_frame_id:
-                raise(RuntimeError)
+                raise RuntimeError
         else:
             child_frame_id = msg.child_frame_id
         if frame_id:
             if frame_id != msg.header.frame_id:
-                raise(RuntimeError)
+                raise RuntimeError
         else:
             frame_id = msg.header.frame_id
         timestamps.append(msg.header.stamp)
-        poses.append(ros_msg_to_matrix(msg))
+        poses.append(ros_message_to_matrix(msg))
     return timestamps, poses, frame_id, child_frame_id
 
 
@@ -105,7 +90,7 @@ def poses_to_ros_path(poses, timestamps):
     path.header.frame_id = 'map'
     path.header.stamp = timestamps[0]
     for pose, timestamp in zip(poses, timestamps):
-        ros_pose = matrix_to_ros_pose(pose)
+        ros_pose = toMsg(fromMatrix(pose))
         pose_stamped = PoseStamped(pose=ros_pose)
         pose_stamped.header.frame_id = 'map'
         pose_stamped.header.stamp = timestamp
