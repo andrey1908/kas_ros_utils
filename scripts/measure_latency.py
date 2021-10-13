@@ -14,7 +14,7 @@ def build_parser():
     return parser
 
 
-def callback(msg):
+def read_message_latency(msg):
     global measurements
     now = rospy.get_time()
     latency = now - msg.header.stamp.to_sec()
@@ -24,7 +24,7 @@ def callback(msg):
 def measure_latency(topic):
     data_type = rostopic.get_topic_type(topic, blocking=True)[0]
     data_class = roslib.message.get_message_class(data_type)
-    rospy.Subscriber(topic, data_class, callback)
+    rospy.Subscriber(topic, data_class, read_message_latency)
     print("Reading messages...")
     rospy.spin()
     global measurements

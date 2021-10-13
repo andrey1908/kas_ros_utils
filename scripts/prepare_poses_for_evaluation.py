@@ -47,7 +47,7 @@ def check_union_intersection_difference(A, B, max_difference=0.9):
     union = (max(A[-1], B[-1]) - min(A[0], B[0])).to_sec()
     intersection = (min(A[-1], B[-1]) - max(A[0], B[0])).to_sec()
     print("Union intersection difference: {:.3f} ms".format((union - intersection) * 1000))
-    assert(union - intersection <= max_difference)
+    return union - intersection <= max_difference
 
 
 def find_boundaries_indexes(array, value):
@@ -137,7 +137,7 @@ def check_step(A, B, max_step=0.7):
     B_steps = np.abs(np.insert(B, 0, B[0]) - np.append(B, B[-1]))[1:-1]
     step = max(np.max(A_steps), np.max(B_steps))
     print('Max step in matched timestamps: {:.3f} ms'.format(step * 1000))
-    assert(step <= max_step)
+    return step <= max_step
 
 
 def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files, results_topic,
@@ -159,7 +159,8 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
     results_timestamps = np.array(results_timestamps)
     results_poses = np.array(results_poses)
 
-    check_union_intersection_difference(gt_timestamps, results_timestamps, max_difference=max_union_intersection_time_difference)
+    if not check_union_intersection_difference(gt_timestamps, results_timestamps, max_difference=max_union_intersection_time_difference):
+        raise RuntimeError()
 
     print("Finding mutual indexes for poses...")
     gt_indexes, results_indexes = find_mutual_indexes(gt_timestamps, results_timestamps, max_error=max_time_error)
@@ -174,7 +175,8 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
     results_poses = results_poses[results_indexes]
     results_timestamps = results_timestamps[results_indexes]
 
-    check_step(gt_timestamps, results_timestamps, max_step=max_time_step)
+    if not check_step(gt_timestamps, results_timestamps, max_step=max_time_step):
+        raise RuntimeError()
 
     print("Moving poses to the origin...")
     move_first_pose_to_the_origin(gt_poses)

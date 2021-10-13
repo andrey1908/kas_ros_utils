@@ -13,7 +13,7 @@ def build_parser():
     return parser
 
 
-def odom_received(odom):
+def publish_odometry_transform(odom):
     global tfBroadcaster
 
     position = odom.pose.pose.position
@@ -30,6 +30,6 @@ if __name__ == '__main__':
     
     rospy.init_node('publish_odometry_transforms')
     tfBroadcaster = tf2_ros.TransformBroadcaster()
-    rospy.Subscriber(odom_topic, Odometry, odom_received)
+    rospy.Subscriber(odom_topic, Odometry, publish_odometry_transform)
     rospy.spin()
     
