@@ -6,7 +6,8 @@ from geometry_msgs.msg import *
 import tf2_ros
 import argparse
 import numpy as np
-from transforms3d.quaternions import quat2mat, mat2quat
+from transforms3d.quaternions import mat2quat
+from poses_handler import ros_message_to_matrix
 from copy import deepcopy
 
 
@@ -31,24 +32,6 @@ def skew_to_vector(x):
     return np.array([x[2, 1], x[0, 2], x[1, 0]])
 
 
-def ros_transform_to_matrix(ros_transform):
-    transform = np.zeros((4, 4))
-    rotation = ros_transform.transform.rotation
-    transform[:3, :3] = quat2mat([rotation.w, rotation.x, rotation.y, rotation.z])
-    translation = ros_transform.transform.translation
-    transform[:3, 3] = [translation.x, translation.y, translation.z]
-    transform[3, 3] = 1
-    return transform
-
-
-def ros_pose_to_matrix(ros_pose):
-    pose = np.zeros((4, 4))
-    pose[:3, :3] = quat2mat([ros_pose.orientation.w, ros_pose.orientation.x, ros_pose.orientation.y, ros_pose.orientation.z])
-    pose[:3, 3] = [ros_pose.position.x, ros_pose.position.y, ros_pose.position.z]
-    pose[3, 3] = 1
-    return pose
-
-
 def ros_twist_to_matrix(ros_twist):
     twist = np.zeros((4, 4))
     twist[:3, :3] = vector_to_skew([ros_twist.angular.x, ros_twist.angular.y, ros_twist.angular.z])
@@ -70,8 +53,8 @@ def odom_received(odom):
 
     ros_transform = tfBuffer.lookup_transform(new_child_frame, odom.child_frame_id, odom.header.stamp)
 
-    transform = ros_transform_to_matrix(ros_transform)
-    pose = ros_pose_to_matrix(odom.pose.pose)
+    transform = ros_message_to_matrix(ros_transform)
+    pose = ros_message_to_matrix(odom)
     twist = ros_twist_to_matrix(odom.twist.twist)
 
     new_pose = transform @ pose @ np.linalg.inv(transform)
