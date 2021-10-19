@@ -1,17 +1,29 @@
 from tqdm import tqdm
 import numpy as np
 import rosbag
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import Pose, PoseStamped
 from nav_msgs.msg import Path
-from tf_conversions import fromTf, fromMsg, toMsg, fromMatrix, toMatrix
+from transforms3d.quaternions import quat2mat, mat2quat
+
+
+def to_matrix(T, Q):
+    M = np.zeros((4, 4))
+    M[:3, :3] = quat2mat([Q.w, Q.x, Q.y, Q.z])
+    M[:3, 3] = [T.x, T.y, T.z]
+    M[3, 3] = 1
+    return M
+
+
+def from_matrix(M, out_T, out_Q):
+    out_T.x, out_T.y, out_T.z = M[:3, 3]
+    out_Q.w, out_Q.x, out_Q.y, out_Q.z = mat2quat(M[:3, :3])
 
 
 def ros_message_to_matrix(ros_message):
     if ros_message._type == 'geometry_msgs/TransformStamped':
-        return toMatrix(fromTf(((ros_message.transform.translation.x, ros_message.transform.translation.y, ros_message.transform.translation.z), \
-            (ros_message.transform.rotation.x, ros_message.transform.rotation.y, ros_message.transform.rotation.z, ros_message.transform.rotation.w))))
+        return to_matrix(ros_message.transform.translation, ros_message.transform.rotation)
     if ros_message._type == 'nav_msgs/Odometry':
-        return toMatrix(fromMsg(ros_message.pose.pose))
+        return to_matrix(ros_message.pose.pose.position, ros_message.pose.pose.orientation)
     raise TypeError("Unknown type {}".format(type(ros_message)))
 
 
@@ -90,7 +102,8 @@ def poses_to_ros_path(poses, timestamps):
     path.header.frame_id = 'map'
     path.header.stamp = timestamps[0]
     for pose, timestamp in zip(poses, timestamps):
-        ros_pose = toMsg(fromMatrix(pose))
+        ros_pose = Pose()
+        from_matrix(pose, ros_pose.position, ros_pose.orientation)
         pose_stamped = PoseStamped(pose=ros_pose)
         pose_stamped.header.frame_id = 'map'
         pose_stamped.header.stamp = timestamp
