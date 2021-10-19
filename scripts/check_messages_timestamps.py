@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from prepare_poses_for_evaluation import is_ascending
 import rospy
 import rosbag
 import numpy as np
