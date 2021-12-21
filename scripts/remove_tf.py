@@ -36,8 +36,8 @@ def filter_topics_2(in_bag, out_bag, frames_we_dont_want):
                     if msg.transforms[i].header.frame_id not in frames_we_dont_want and msg.transforms[i].child_frame_id not in frames_we_dont_want:
                         transforms_to_keep.append(msg.transforms[i])
                         #print("Keeping: " + str(msg.transforms[i]))
-                    # else:
-                    #     print("Discarding: " + str(msg.transforms[i]))
+                    #else:
+                        #print("Discarding: " + str(msg.transforms[i]))
 
                 msg.transforms = transforms_to_keep
                 outbag.write(topic, msg, t)
