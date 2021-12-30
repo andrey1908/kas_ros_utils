@@ -14,7 +14,7 @@ from copy import deepcopy
 def build_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('-odom', '--odom-topic', required=True, type=str)
-    parser.add_argument('--new-odom-frame', required=True, type=str)
+    parser.add_argument('--new-odom-frame-name', required=True, type=str)
     parser.add_argument('--new-child-frame', required=True, type=str)
     parser.add_argument('-out-odom', '--out-odom-topic', type=str, default=None)
     parser.add_argument('-pub-tf', '--publish-odometry-transforms', action='store_true')
@@ -41,8 +41,8 @@ def ros_twist_to_matrix(ros_twist):
 
 
 def odom_received(odom):
+    global new_odom_frame_name
     global new_child_frame
-    global new_odom_frame
     global publish_odometry_transforms
     global drift_vector
 
@@ -72,7 +72,7 @@ def odom_received(odom):
 
     if odom_publisher is not None:
         new_odom = Odometry(header=deepcopy(odom.header))
-        new_odom.header.frame_id = new_odom_frame
+        new_odom.header.frame_id = new_odom_frame_name
         new_odom.child_frame_id = new_child_frame
         new_odom.pose = PoseWithCovariance(pose=Pose(Point(new_position[0], new_position[1], new_position[2]),
                                                      Quaternion(new_orientation[1], new_orientation[2], new_orientation[3], new_orientation[0])))
@@ -82,7 +82,7 @@ def odom_received(odom):
 
     if publish_odometry_transforms:
         transform = TransformStamped(header=deepcopy(odom.header))
-        transform.header.frame_id = new_odom_frame
+        transform.header.frame_id = new_odom_frame_name
         transform.child_frame_id = new_child_frame
         transform.transform = Transform(Vector3(new_position[0], new_position[1], new_position[2]),
                                         Quaternion(new_orientation[1], new_orientation[2], new_orientation[3], new_orientation[0]))
@@ -93,8 +93,8 @@ if __name__ == '__main__':
     parser = build_parser()
     args, _ = parser.parse_known_args()
     odom_topic = args.odom_topic
+    new_odom_frame_name = args.new_odom_frame_name
     new_child_frame = args.new_child_frame
-    new_odom_frame = args.new_odom_frame
     out_odom_topic = args.out_odom_topic
     publish_odometry_transforms = args.publish_odometry_transforms
     drift_vector = np.array(args.drift_vector)
