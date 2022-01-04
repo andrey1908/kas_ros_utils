@@ -28,9 +28,11 @@ def fill_tf_buffer_with_static_transforms_from_urdf(urdf: Robot, tf_buffer):
 def fill_tf_buffer_with_static_transforms_from_launch(launch: ET.Element, tf_buffer):
     for elem in launch:
         if elem.tag != 'node':
-            continue
+            raise RuntimeError("Launch file contains some unknown tags or attributes")
+        if set(elem.attrib.keys()) != {'pkg', 'type', 'name', 'args'}:
+            raise RuntimeError("Launch file contains some unknown tags or attributes")
         if elem.attrib['pkg'] != 'tf2_ros' or elem.attrib['type'] != 'static_transform_publisher':
-            continue
+            raise RuntimeError("Launch file contains some unknown tags or attributes")
         params = elem.attrib['args'].split()
         if len(params) == 8:
             xyzypr = list(map(float, params[:6]))
@@ -53,7 +55,7 @@ def fill_tf_buffer_with_static_transforms_from_launch(launch: ET.Element, tf_buf
             transform_stamped.child_frame_id = str(params[8])
             tf_buffer.set_transform_static(transform_stamped, 'default_authority')
         else:
-            raise RuntimeError
+            raise RuntimeError("Unknown number of arguments ({}) for static_transform_publisher node".format(len(params)))
 
 
 def fill_tf_buffer_with_static_transforms(transforms_source, tf_buffer):
