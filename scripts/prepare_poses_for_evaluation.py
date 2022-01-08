@@ -214,6 +214,6 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
 
 if __name__ == '__main__':
     parser = build_parser()
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
     prepare_poses_for_evaluation(**vars(args))
     
