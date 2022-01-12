@@ -165,7 +165,7 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
     union_intersection_difference = get_union_intersection_difference(gt_timestamps, results_timestamps)
     print("Union intersection difference: {:.3f} s".format(union_intersection_difference))
     if union_intersection_difference > max_union_intersection_time_difference:
-        raise RuntimeError("Union intersection difference is {:.3f}, but should not be greater than {:.3f}".format(union_intersection_difference,
+        raise RuntimeError("Union intersection difference is {:.3f}, but it should not be greater than {:.3f}".format(union_intersection_difference,
             max_union_intersection_time_difference))
 
     print("Finding mutual indexes for poses...")
@@ -184,7 +184,7 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
     max_step = get_max_step(gt_timestamps, results_timestamps)
     print('Max step in matched timestamps: {:.3f} s'.format(max_step))
     if max_step > max_time_step:
-        raise RuntimeError("Max step in matched poses is {:.3f}, but should not be greater than {:.3f}".format(max_step, max_time_step))
+        raise RuntimeError("Max step in matched poses is {:.3f}, but it should not be greater than {:.3f}".format(max_step, max_time_step))
 
     print("Moving poses to the origin...")
     move_first_pose_to_the_origin(gt_poses)
@@ -192,7 +192,8 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
 
     if gt_child_frame_id != results_child_frame_id:
         if not transforms_source_file:
-            raise RuntimeError
+            raise RuntimeError("Need transforms source file to convert poses between "
+                "gt frame '{}' and results frame '{}'".format(gt_child_frame_id, results_child_frame_id))
         print("Reading static transforms...")
         tf_buffer = tf2_ros.Buffer()
         fill_tf_buffer_with_static_transforms_from_file(transforms_source_file, tf_buffer)
