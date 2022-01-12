@@ -184,7 +184,7 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
     max_step = get_max_step(gt_timestamps, results_timestamps)
     print('Max step in matched timestamps: {:.3f} s'.format(max_step))
     if max_step > max_time_step:
-        raise RuntimeError("Max step in mached poses is {:.3f}, but should not be greater than {:.3f}".format(max_step, max_time_step))
+        raise RuntimeError("Max step in matched poses is {:.3f}, but should not be greater than {:.3f}".format(max_step, max_time_step))
 
     print("Moving poses to the origin...")
     move_first_pose_to_the_origin(gt_poses)
