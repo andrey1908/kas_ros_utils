@@ -39,28 +39,28 @@ def is_ascending(list):
     return True
 
 
-def check_union_intersection_difference(A, B, max_difference=0.9):
+def get_union_intersection_difference(A, B):
     if not is_ascending(A):
-        raise(RuntimeError)
+        raise RuntimeError
     if not is_ascending(B):
-        raise(RuntimeError)
+        raise RuntimeError
     
     union = (max(A[-1], B[-1]) - min(A[0], B[0])).to_sec()
     intersection = (min(A[-1], B[-1]) - max(A[0], B[0])).to_sec()
-    print("Union intersection difference: {:.3f} ms".format((union - intersection) * 1000))
-    return union - intersection <= max_difference
+    union_intersection_difference = union - intersection
+    return union_intersection_difference
 
 
-def find_boundaries_indexes(array, value):
+def find_boundary_indexes(array, value):
     if len(array) == 0:
-        raise RuntimeError()
+        raise RuntimeError
     lower = None
     lower_min_difference = -1
     upper = None
     upper_min_difference = -1
     for i in range(len(array)):
         if array[i] == value:
-            raise RuntimeError()
+            raise RuntimeError
         if array[i] < value:
             if lower_min_difference > value - array[i] or lower_min_difference < 0:
                 lower = i
@@ -75,9 +75,9 @@ def find_boundaries_indexes(array, value):
 def find_mutual_indexes(A, B, max_error=0.01):
     # Ascending order is needed for faster filling matching_results variable.
     if not is_ascending(A):
-        raise(RuntimeError)
+        raise RuntimeError
     if not is_ascending(B):
-        raise(RuntimeError)
+        raise RuntimeError
 
     matching_results = list()
     start_B_index = 0
@@ -108,7 +108,7 @@ def find_mutual_indexes(A, B, max_error=0.01):
         if (A_index in matched_A_indexes) or (B_index in matched_B_indexes):
             continue
         if len(A_indexes) > 0:
-            lower, upper = find_boundaries_indexes(A_indexes, A_index)
+            lower, upper = find_boundary_indexes(A_indexes, A_index)
             lower_B_condition = True
             upper_B_condition = True
             if lower is not None:
@@ -130,15 +130,14 @@ def find_mutual_indexes(A, B, max_error=0.01):
     return A_indexes, B_indexes
 
 
-def check_step(A, B, max_step=0.7):
+def get_max_step(A, B):
     A = np.array(list(map(lambda x: x.to_sec(), A)))
     B = np.array(list(map(lambda x: x.to_sec(), B)))
 
     A_steps = np.abs(np.insert(A, 0, A[0]) - np.append(A, A[-1]))[1:-1]
     B_steps = np.abs(np.insert(B, 0, B[0]) - np.append(B, B[-1]))[1:-1]
     step = max(np.max(A_steps), np.max(B_steps))
-    print('Max step in matched timestamps: {:.3f} ms'.format(step * 1000))
-    return step <= max_step
+    return step
 
 
 def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files, results_topic,
@@ -155,23 +154,26 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
     gt_timestamps, gt_poses, _, gt_child_frame_id = read_poses_from_bag_files(gt_rosbag_files, gt_topic, use_tqdm=True)
     results_timestamps, results_poses, _, results_child_frame_id = read_poses_from_bag_files(results_rosbag_files, results_topic, use_tqdm=True)
     if not is_ascending(gt_timestamps):
-        raise(RuntimeError)
+        raise RuntimeError
     if not is_ascending(results_timestamps):
-        raise(RuntimeError)
+        raise RuntimeError
     gt_timestamps = np.array(gt_timestamps)
     gt_poses = np.array(gt_poses)
     results_timestamps = np.array(results_timestamps)
     results_poses = np.array(results_poses)
 
-    if not check_union_intersection_difference(gt_timestamps, results_timestamps, max_difference=max_union_intersection_time_difference):
-        raise RuntimeError()
+    union_intersection_difference = get_union_intersection_difference(gt_timestamps, results_timestamps)
+    print("Union intersection difference: {:.3f} s".format(union_intersection_difference))
+    if union_intersection_difference > max_union_intersection_time_difference:
+        raise RuntimeError("Union intersection difference is {:.3f}, but it should not be greater than {:.3f}".format(union_intersection_difference,
+            max_union_intersection_time_difference))
 
     print("Finding mutual indexes for poses...")
     gt_indexes, results_indexes = find_mutual_indexes(gt_timestamps, results_timestamps, max_error=max_time_error)
     if not is_ascending(gt_indexes):
-        raise(RuntimeError)
+        raise RuntimeError
     if not is_ascending(results_indexes):
-        raise(RuntimeError)
+        raise RuntimeError
 
     print("Getting poses with mutual indexes...")
     gt_poses = gt_poses[gt_indexes]
@@ -179,8 +181,10 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
     results_poses = results_poses[results_indexes]
     results_timestamps = results_timestamps[results_indexes]
 
-    if not check_step(gt_timestamps, results_timestamps, max_step=max_time_step):
-        raise RuntimeError()
+    max_step = get_max_step(gt_timestamps, results_timestamps)
+    print('Max step in matched timestamps: {:.3f} s'.format(max_step))
+    if max_step > max_time_step:
+        raise RuntimeError("Max step in matched poses is {:.3f}, but it should not be greater than {:.3f}".format(max_step, max_time_step))
 
     print("Moving poses to the origin...")
     move_first_pose_to_the_origin(gt_poses)
@@ -188,7 +192,8 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
 
     if gt_child_frame_id != results_child_frame_id:
         if not transforms_source_file:
-            raise(RuntimeError)
+            raise RuntimeError("Need transforms source file to convert poses between "
+                "gt frame '{}' and results frame '{}'".format(gt_child_frame_id, results_child_frame_id))
         print("Reading static transforms...")
         tf_buffer = tf2_ros.Buffer()
         fill_tf_buffer_with_static_transforms_from_file(transforms_source_file, tf_buffer)
@@ -214,6 +219,6 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
 
 if __name__ == '__main__':
     parser = build_parser()
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
     prepare_poses_for_evaluation(**vars(args))
     
