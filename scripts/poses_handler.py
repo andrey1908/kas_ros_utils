@@ -75,14 +75,14 @@ def read_poses_from_bag_files(rosbag_files, topic, use_tqdm=False):
 def move_first_pose_to_the_origin(poses):
     first_pose_inv = np.linalg.inv(poses[0])
     for i in range(len(poses)):
-        poses[i] = first_pose_inv @ poses[i]
+        poses[i] = np.matmul(first_pose_inv, poses[i])
 
 
 # 'transform' should move frame that is used now to desired frame
 def transform_poses(poses, transform):
     transform_inv = np.linalg.inv(transform)
     for i in range(len(poses)):
-        poses[i] = transform_inv @ poses[i] @ transform
+        poses[i] = np.matmul(np.matmul(transform_inv, poses[i]), transform)
 
 
 def write_poses(out_file, poses):
