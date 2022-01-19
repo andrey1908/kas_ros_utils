@@ -7,7 +7,7 @@ import tf2_ros
 import argparse
 import numpy as np
 from transforms3d.quaternions import mat2quat
-from poses_handler import ros_message_to_matrix
+from poses_handler import ros_message_to_pose_matrix
 from copy import deepcopy
 
 
@@ -53,8 +53,8 @@ def odom_received(odom):
 
     ros_transform = tfBuffer.lookup_transform(new_child_frame, odom.child_frame_id, odom.header.stamp)
 
-    transform = ros_message_to_matrix(ros_transform)
-    pose = ros_message_to_matrix(odom)
+    transform = ros_message_to_pose_matrix(ros_transform)
+    pose = ros_message_to_pose_matrix(odom)
     twist = ros_twist_to_matrix(odom.twist.twist)
 
     new_pose = transform @ pose @ np.linalg.inv(transform)

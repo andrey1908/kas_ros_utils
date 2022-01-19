@@ -7,7 +7,7 @@ import tf2_ros
 import argparse
 import numpy as np
 from transforms3d.quaternions import mat2quat
-from poses_handler import ros_message_to_matrix
+from poses_handler import ros_message_to_pose_matrix
 from copy import deepcopy
 
 
@@ -44,9 +44,9 @@ def odom_received(odom):
     global first_pose_inv
     
     if (first_pose_inv is None):
-        first_pose_inv = np.linalg.inv(ros_message_to_matrix(odom))
+        first_pose_inv = np.linalg.inv(ros_message_to_pose_matrix(odom))
 
-    pose = ros_message_to_matrix(odom)
+    pose = ros_message_to_pose_matrix(odom)
 
     new_pose = first_pose_inv @ pose
     new_position = new_pose[:3, 3]
