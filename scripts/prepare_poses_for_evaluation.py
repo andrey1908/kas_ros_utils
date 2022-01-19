@@ -5,6 +5,7 @@ import tf2_ros
 import argparse
 import numpy as np
 import os
+import os.path as osp
 from static_transforms_reader import fill_tf_buffer_with_static_transforms_from_file
 from poses_handler import read_poses_from_bag_files, move_first_pose_to_the_origin, transform_poses, write_poses, poses_to_ros_path, \
     ros_message_to_pose_matrix
@@ -143,10 +144,10 @@ def get_max_step(A, B):
 def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files, results_topic,
                                  out_gt_file, out_results_file, transforms_source_file=None, out_trajectories_rosbag_file=None,
                                  max_union_intersection_time_difference=0.9, max_time_error=0.01, max_time_step=0.7):
-    if not os.path.exists(os.path.dirname(out_gt_file)):
-        os.makedirs(os.path.dirname(out_gt_file))
-    if not os.path.exists(os.path.dirname(out_results_file)):
-        os.makedirs(os.path.dirname(out_results_file))
+    if not osp.exists(osp.realpath(osp.dirname(out_gt_file))):
+        os.makedirs(osp.realpath(osp.dirname(out_gt_file)))
+    if not osp.exists(osp.realpath(osp.dirname(out_results_file))):
+        os.makedirs(osp.realpath(osp.dirname(out_results_file)))
 
     print("Extracting poses...")
     if isinstance(gt_rosbag_files, str):
