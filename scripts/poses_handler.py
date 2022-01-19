@@ -6,7 +6,7 @@ from nav_msgs.msg import Path
 from transforms3d.quaternions import quat2mat, mat2quat
 
 
-def to_matrix(T, Q):
+def to_pose_matrix(T, Q):
     M = np.zeros((4, 4))
     M[:3, :3] = quat2mat([Q.w, Q.x, Q.y, Q.z])
     M[:3, 3] = [T.x, T.y, T.z]
@@ -14,16 +14,16 @@ def to_matrix(T, Q):
     return M
 
 
-def from_matrix(M, out_T, out_Q):
+def from_pose_matrix(M, out_T, out_Q):
     out_T.x, out_T.y, out_T.z = M[:3, 3]
     out_Q.w, out_Q.x, out_Q.y, out_Q.z = mat2quat(M[:3, :3])
 
 
-def ros_message_to_matrix(ros_message):
+def ros_message_to_pose_matrix(ros_message):
     if ros_message._type == 'geometry_msgs/TransformStamped':
-        return to_matrix(ros_message.transform.translation, ros_message.transform.rotation)
+        return to_pose_matrix(ros_message.transform.translation, ros_message.transform.rotation)
     if ros_message._type == 'nav_msgs/Odometry':
-        return to_matrix(ros_message.pose.pose.position, ros_message.pose.pose.orientation)
+        return to_pose_matrix(ros_message.pose.pose.position, ros_message.pose.pose.orientation)
     raise TypeError("Unknown type {}".format(type(ros_message)))
 
 
@@ -48,7 +48,7 @@ def read_poses(bag, topic, use_tqdm=False):
         else:
             frame_id = msg.header.frame_id
         timestamps.append(msg.header.stamp)
-        poses.append(ros_message_to_matrix(msg))
+        poses.append(ros_message_to_pose_matrix(msg))
     return timestamps, poses, frame_id, child_frame_id
 
 
@@ -103,7 +103,7 @@ def poses_to_ros_path(poses, timestamps):
     path.header.stamp = timestamps[0]
     for pose, timestamp in zip(poses, timestamps):
         ros_pose = Pose()
-        from_matrix(pose, ros_pose.position, ros_pose.orientation)
+        from_pose_matrix(pose, ros_pose.position, ros_pose.orientation)
         pose_stamped = PoseStamped(pose=ros_pose)
         pose_stamped.header.frame_id = 'map'
         pose_stamped.header.stamp = timestamp

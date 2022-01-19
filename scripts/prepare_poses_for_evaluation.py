@@ -7,7 +7,7 @@ import numpy as np
 import os
 from static_transforms_reader import fill_tf_buffer_with_static_transforms_from_file
 from poses_handler import read_poses_from_bag_files, move_first_pose_to_the_origin, transform_poses, write_poses, poses_to_ros_path, \
-    ros_message_to_matrix
+    ros_message_to_pose_matrix
 
 
 def build_parser():
@@ -200,7 +200,7 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
         tf_buffer = tf2_ros.Buffer()
         fill_tf_buffer_with_static_transforms_from_file(transforms_source_file, tf_buffer)
         ros_transform = tf_buffer.lookup_transform(results_child_frame_id, gt_child_frame_id, rospy.Time())
-        transform = ros_message_to_matrix(ros_transform)
+        transform = ros_message_to_pose_matrix(ros_transform)
         print("Transforming SLAM poses to gt frame...")
         transform_poses(results_poses, transform)
 
