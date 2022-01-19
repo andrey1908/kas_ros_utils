@@ -143,8 +143,10 @@ def get_max_step(A, B):
 def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files, results_topic,
                                  out_gt_file, out_results_file, transforms_source_file=None, out_trajectories_rosbag_file=None,
                                  max_union_intersection_time_difference=0.9, max_time_error=0.01, max_time_step=0.7):
-    os.makedirs(os.path.dirname(out_gt_file), exist_ok=True)
-    os.makedirs(os.path.dirname(out_results_file), exist_ok=True)
+    if not os.path.exists(os.path.dirname(out_gt_file)):
+        os.makedirs(os.path.dirname(out_gt_file))
+    if not os.path.exists(os.path.dirname(out_results_file)):
+        os.makedirs(os.path.dirname(out_results_file))
 
     print("Extracting poses...")
     if isinstance(gt_rosbag_files, str):
