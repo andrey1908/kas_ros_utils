@@ -144,10 +144,11 @@ def get_max_step(A, B):
 def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files, results_topic,
                                  out_gt_file, out_results_file, transforms_source_file=None, out_trajectories_rosbag_file=None,
                                  max_union_intersection_time_difference=0.9, max_time_error=0.01, max_time_step=0.7):
-    if not osp.exists(osp.realpath(osp.dirname(out_gt_file))):
-        os.makedirs(osp.realpath(osp.dirname(out_gt_file)))
-    if not osp.exists(osp.realpath(osp.dirname(out_results_file))):
-        os.makedirs(osp.realpath(osp.dirname(out_results_file)))
+    if not osp.exists(osp.dirname(osp.realpath(out_gt_file))):
+        os.makedirs(osp.dirname(osp.realpath(out_gt_file)))  # osp.realpath is needed because if out_gt_file is just a file name,
+                                                             # then osp.dirname is '' and os.makedirs fails
+    if not osp.exists(osp.dirname(osp.realpath(out_results_file))):
+        os.makedirs(osp.dirname(osp.realpath(out_results_file)))  # same here
 
     print("Extracting poses...")
     if isinstance(gt_rosbag_files, str):
