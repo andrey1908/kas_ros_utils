@@ -199,7 +199,7 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
             raise RuntimeError("Need transforms source file to convert poses between "
                 "gt frame '{}' and results frame '{}'".format(gt_child_frame_id, results_child_frame_id))
         print("Reading static transforms...")
-        tf_buffer = tf2_ros.Buffer()
+        tf_buffer = tf2_ros.Buffer(debug=False)
         fill_tf_buffer_with_static_transforms_from_file(transforms_source_file, tf_buffer)
         ros_transform = tf_buffer.lookup_transform(results_child_frame_id, gt_child_frame_id, rospy.Time())
         transform = ros_message_to_pose_matrix(ros_transform)
