@@ -22,7 +22,7 @@ def rewrite_rosbag(in_rosbag_file, out_rosbag_file, topics=None):
         for topic, msg, t in tqdm(messages_reader, total=total_number):
             # This also replaces tf timestamps under the assumption 
             # that all transforms in the message share the same timestamp
-            if topic == "/tf" and msg.transforms:
+            if topic in ["/tf", "/tf_static"] and msg.transforms:
                 outbag.write(topic, msg, msg.transforms[0].header.stamp)
             else:
                 outbag.write(topic, msg, msg.header.stamp if msg._has_header else t)
