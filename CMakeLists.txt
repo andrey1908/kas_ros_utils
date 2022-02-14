@@ -159,18 +159,10 @@ include_directories(
 
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
-catkin_install_python(PROGRAMS
-  scripts/measure_latency.py
-  scripts/occupancy_grid_demo.py
-  scripts/poses_handler.py
-  scripts/prepare_poses_for_evaluation.py
-  scripts/publish_odometry_transforms.py
-  scripts/read_transforms.py
-  scripts/save_occupancy_grid.py
-  scripts/static_transforms_reader.py
-  scripts/transform_odometry.py
-  DESTINATION share/${PROJECT_NAME}
-)
+# catkin_install_python(PROGRAMS
+#   scripts/my_python_script
+#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+# )
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
