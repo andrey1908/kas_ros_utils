@@ -5,13 +5,13 @@ import xml.etree.ElementTree as ET
 from tf.transformations import quaternion_from_euler
 
 
-def fill_tf_buffer_with_static_transforms_from_bag(bag: rosbag.bag.Bag, tf_buffer):
+def fill_tf_buffer_with_static_transforms_from_bag(bag, tf_buffer):
     for topic, msg, t in bag.read_messages(topics=['/tf_static']):
         for transform in msg.transforms:
             tf_buffer.set_transform_static(transform, 'default_authority')
             
 
-def fill_tf_buffer_with_static_transforms_from_urdf(urdf: Robot, tf_buffer):
+def fill_tf_buffer_with_static_transforms_from_urdf(urdf, tf_buffer):
     for joint in urdf.joints:
         if joint.type != 'fixed':
             continue
@@ -25,7 +25,7 @@ def fill_tf_buffer_with_static_transforms_from_urdf(urdf: Robot, tf_buffer):
         tf_buffer.set_transform_static(transform_stamped, 'default_authority')
 
 
-def fill_tf_buffer_with_static_transforms_from_launch(launch: ET.Element, tf_buffer):
+def fill_tf_buffer_with_static_transforms_from_launch(launch, tf_buffer):
     for elem in launch:
         if elem.tag != 'node':
             raise RuntimeError("Launch file contains some unknown tags or attributes")

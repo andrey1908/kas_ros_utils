@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 import rosbag
 import rospy
 import tf2_ros
@@ -7,8 +7,8 @@ import numpy as np
 import os
 import os.path as osp
 from static_transforms_reader import fill_tf_buffer_with_static_transforms_from_file
-from poses_handler import read_poses_from_bag_files, move_first_pose_to_the_origin, transform_poses, write_poses, poses_to_ros_path, \
-    ros_message_to_pose_matrix
+from poses_handler import read_poses_from_bag_files, move_first_pose_to_the_origin, transform_poses, write_poses, poses_to_ros_path
+from ros_numpy.geometry import transform_to_numpy
 
 
 def build_parser():
@@ -144,9 +144,11 @@ def get_max_step(A, B):
 def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files, results_topic,
                                  out_gt_file, out_results_file, transforms_source_file=None, out_trajectories_rosbag_file=None,
                                  max_union_intersection_time_difference=0.9, max_time_error=0.01, max_time_step=0.7):
-    os.makedirs(osp.dirname(osp.realpath(out_gt_file)), exist_ok=True)  # osp.realpath is needed because if out_gt_file is just a file name,
-                                                                        # then osp.dirname is '' and os.makedirs fails
-    os.makedirs(osp.dirname(osp.realpath(out_results_file)), exist_ok=True)  # same here
+    if not osp.exists(osp.dirname(osp.realpath(out_gt_file))):
+        os.makedirs(osp.dirname(osp.realpath(out_gt_file)))  # osp.realpath is needed because if out_gt_file is a file name in current directory,
+                                                             # then osp.dirname will be '' and os.makedirs fails
+    if not osp.exists(osp.dirname(osp.realpath(out_results_file))):
+        os.makedirs(osp.dirname(osp.realpath(out_results_file)))  # same here
 
     print("Extracting poses...")
     if isinstance(gt_rosbag_files, str):
@@ -200,7 +202,7 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
         tf_buffer = tf2_ros.Buffer(debug=False)
         fill_tf_buffer_with_static_transforms_from_file(transforms_source_file, tf_buffer)
         ros_transform = tf_buffer.lookup_transform(results_child_frame_id, gt_child_frame_id, rospy.Time())
-        transform = ros_message_to_pose_matrix(ros_transform)
+        transform = transform_to_numpy(ros_transform.transform)
         print("Transforming SLAM poses to gt frame...")
         transform_poses(results_poses, transform)
 

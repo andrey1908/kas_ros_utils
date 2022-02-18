@@ -1,14 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 import rospy
-from std_msgs.msg import Header
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import *
-import tf2_ros
 import argparse
 import numpy as np
-from transforms3d.quaternions import mat2quat
-from poses_handler import ros_message_to_pose_matrix
-from copy import deepcopy
+from ros_numpy.geometry import pose_to_numpy, numpy_to_pose
 
 
 def build_parser():
@@ -19,24 +14,6 @@ def build_parser():
     return parser
 
 
-def vector_to_skew(x):
-    return np.array([[0, -x[2], x[1]],
-                     [x[2], 0, -x[0]],
-                     [-x[1], x[0], 0]])
-
-
-def skew_to_vector(x):
-    return np.array([x[2, 1], x[0, 2], x[1, 0]])
-
-
-def ros_twist_to_matrix(ros_twist):
-    twist = np.zeros((4, 4))
-    twist[:3, :3] = vector_to_skew([ros_twist.angular.x, ros_twist.angular.y, ros_twist.angular.z])
-    twist[:3, 3] = [ros_twist.linear.x, ros_twist.linear.y, ros_twist.linear.z]
-    twist[3, 3] = 1
-    return twist
-
-
 def odom_received(odom):
     global new_child_frame
     global new_odom_frame_name
@@ -44,18 +21,18 @@ def odom_received(odom):
     global first_pose_inv
     
     if (first_pose_inv is None):
-        first_pose_inv = np.linalg.inv(ros_message_to_pose_matrix(odom))
+        first_pose_inv = np.linalg.inv(pose_to_numpy(odom.pose.pose))
 
-    pose = ros_message_to_pose_matrix(odom)
+    pose = pose_to_numpy(odom.pose.pose)
+    new_pose = np.matmul(first_pose_inv, pose)
+    new_ros_pose = numpy_to_pose(new_pose)
 
-    new_pose = first_pose_inv @ pose
-    new_position = new_pose[:3, 3]
-    new_orientation = mat2quat(new_pose[:3, :3])
-
-    new_odom = Odometry(header=deepcopy(odom.header))
+    new_odom = Odometry()
+    new_odom.header.stamp = odom.header.stamp
     new_odom.header.frame_id = new_odom_frame_name
-    new_odom.pose = PoseWithCovariance(pose=Pose(Point(new_position[0], new_position[1], new_position[2]),
-                                                 Quaternion(new_orientation[1], new_orientation[2], new_orientation[3], new_orientation[0])))
+    new_odom.child_frame_id = odom.child_frame_id
+    new_odom.pose.pose = new_ros_pose
+    new_odom.twist = odom.twist
     odom_publisher.publish(new_odom)
 
 

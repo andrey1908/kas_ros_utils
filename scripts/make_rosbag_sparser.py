@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 import rosbag
 import rospy
 from tqdm import tqdm

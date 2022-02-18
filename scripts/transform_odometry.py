@@ -1,14 +1,11 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 import rospy
-from std_msgs.msg import Header
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import *
+from geometry_msgs.msg import TransformStamped, Twist
 import tf2_ros
 import argparse
 import numpy as np
-from transforms3d.quaternions import mat2quat
-from poses_handler import ros_message_to_pose_matrix
-from copy import deepcopy
+from ros_numpy.geometry import transform_to_numpy, numpy_to_transform, pose_to_numpy, numpy_to_pose
 
 
 def build_parser():
@@ -32,11 +29,19 @@ def skew_to_vector(x):
     return np.array([x[2, 1], x[0, 2], x[1, 0]])
 
 
-def ros_twist_to_matrix(ros_twist):
-    twist = np.zeros((4, 4))
-    twist[:3, :3] = vector_to_skew([ros_twist.angular.x, ros_twist.angular.y, ros_twist.angular.z])
-    twist[:3, 3] = [ros_twist.linear.x, ros_twist.linear.y, ros_twist.linear.z]
-    twist[3, 3] = 1
+def twist_to_numpy(twist):
+    arr = np.zeros((4, 4))
+    arr[:3, :3] = vector_to_skew([twist.angular.x, twist.angular.y, twist.angular.z])
+    arr[:3, 3] = [twist.linear.x, twist.linear.y, twist.linear.z]
+    arr[3, 3] = 1
+    return arr
+
+
+def numpy_to_twist(arr):
+    twist = Twist()
+    w = skew_to_vector(arr[:3, :3])
+    twist.linear.x, twist.linear.y, twist.linear.z = arr[:3, 3]
+    twist.angular.x, twist.angular.y, twist.angular.z = w
     return twist
 
 
@@ -53,39 +58,39 @@ def odom_received(odom):
 
     ros_transform = tfBuffer.lookup_transform(new_child_frame, odom.child_frame_id, odom.header.stamp)
 
-    transform = ros_message_to_pose_matrix(ros_transform)
-    pose = ros_message_to_pose_matrix(odom)
-    twist = ros_twist_to_matrix(odom.twist.twist)
+    transform = transform_to_numpy(ros_transform.transform)
+    transform_r4 = np.eye(4)
+    transform_r4[:3, :3] = transform[:3, :3]
 
-    new_pose = transform @ pose @ np.linalg.inv(transform)
-    new_position = new_pose[:3, 3]
-    new_orientation = mat2quat(new_pose[:3, :3])
-
-    new_twist = transform @ twist @ np.linalg.inv(transform)
-    new_linear = new_twist[:3, 3]
-    new_angular = skew_to_vector(new_twist[:3, :3])
+    pose = pose_to_numpy(odom.pose.pose)
+    twist = twist_to_numpy(odom.twist.twist)
 
     if first_stamp == rospy.Time(0):
         first_stamp = odom.header.stamp
-    new_position += drift_vector * (odom.header.stamp - first_stamp).to_sec()
-    new_linear += drift_vector
+    pose[:3, 3] += drift_vector * (odom.header.stamp - first_stamp).to_sec()
+    twist[:3, 3] += np.matmul(np.linalg.inv(pose[:3, :3]), drift_vector)
+
+    new_pose = np.matmul(np.matmul(transform, pose), np.linalg.inv(transform))
+    new_twist = np.matmul(np.matmul(transform_r4, twist), np.linalg.inv(transform))
+
+    new_ros_pose = numpy_to_pose(new_pose)
+    new_ros_twist = numpy_to_twist(new_twist)
 
     if odom_publisher is not None:
-        new_odom = Odometry(header=deepcopy(odom.header))
+        new_odom = Odometry()
+        new_odom.header.stamp = odom.header.stamp
         new_odom.header.frame_id = new_odom_frame_name
         new_odom.child_frame_id = new_child_frame
-        new_odom.pose = PoseWithCovariance(pose=Pose(Point(new_position[0], new_position[1], new_position[2]),
-                                                     Quaternion(new_orientation[1], new_orientation[2], new_orientation[3], new_orientation[0])))
-        new_odom.twist = TwistWithCovariance(twist=Twist(Vector3(new_linear[0], new_linear[1], new_linear[2]),
-                                                         Vector3(new_angular[0], new_angular[1], new_angular[2])))
+        new_odom.pose.pose = new_ros_pose
+        new_odom.twist.twist = new_ros_twist
         odom_publisher.publish(new_odom)
 
     if publish_odometry_transforms:
-        transform = TransformStamped(header=deepcopy(odom.header))
+        transform = TransformStamped()
+        transform.header.stamp = odom.header.stamp
         transform.header.frame_id = new_odom_frame_name
         transform.child_frame_id = new_child_frame
-        transform.transform = Transform(Vector3(new_position[0], new_position[1], new_position[2]),
-                                        Quaternion(new_orientation[1], new_orientation[2], new_orientation[3], new_orientation[0]))
+        transform.transform = numpy_to_transform(new_ros_pose)
         tfBroadcaster.sendTransform(transform)
 
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 import rospy
 from nav_msgs.msg import OccupancyGrid
 import cv2
