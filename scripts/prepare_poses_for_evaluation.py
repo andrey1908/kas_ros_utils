@@ -25,7 +25,8 @@ def build_parser():
     parser.add_argument('-transforms-source', '--transforms-source-file', type=str, help=".bag, .urdf or .launch file to read static transforms from if needed")
     parser.add_argument('-out-trajectories', '--out-trajectories-rosbag-file', type=str, help="output .bag file to write gt and SLAM trajectories")
 
-    parser.add_argument('--max-union-intersection-time-difference', type=float, default=0.9, help="Max difference between union and intersection or time ragnes where gt and SLAM poses are set.")
+    parser.add_argument('--max-union-intersection-time-difference', type=float, default=0.9,
+        help="Max difference between union and intersection of time ragnes where gt and SLAM poses are set.")
     parser.add_argument('--max-time-error', type=float, default=0.01, help="Max time error during matching gt and SLAM poses.")
     parser.add_argument('--max-time-step', type=float, default=0.7, help="Max time step in gt and SLAM poses after matching.")
     return parser
