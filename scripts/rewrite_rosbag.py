@@ -7,8 +7,8 @@ import argparse
 def build_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('-in', '--in-rosbag-file', type=str, required=True)
-    parser.add_argument('-out', '--out-rosbag-file', type=str, required=True)
     parser.add_argument('-t', '--topics', type=str, nargs='+')
+    parser.add_argument('-out', '--out-rosbag-file', type=str, required=True)
     return parser
 
 
