@@ -25,10 +25,10 @@ def build_parser():
     parser.add_argument('-transforms-source', '--transforms-source-file', type=str, help=".bag, .urdf or .launch file to read static transforms from if needed")
     parser.add_argument('-out-trajectories', '--out-trajectories-rosbag-file', type=str, help="output .bag file to write gt and SLAM trajectories")
 
-    parser.add_argument('--max-union-intersection-time-difference', type=float, default=0.9,
+    parser.add_argument('--max-union-intersection-time-difference', type=float, default=0.5,
         help="Max difference between union and intersection of time ragnes where gt and SLAM poses are set.")
     parser.add_argument('--max-time-error', type=float, default=0.01, help="Max time error during matching gt and SLAM poses.")
-    parser.add_argument('--max-time-step', type=float, default=0.7, help="Max time step in gt and SLAM poses after matching.")
+    parser.add_argument('--max-time-step', type=float, default=0.23, help="Max time step in gt and SLAM poses after matching.")
     return parser
 
 
@@ -144,7 +144,7 @@ def get_max_step(A, B):
 
 def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files, results_topic,
                                  out_gt_file, out_results_file, transforms_source_file=None, out_trajectories_rosbag_file=None,
-                                 max_union_intersection_time_difference=0.9, max_time_error=0.01, max_time_step=0.7):
+                                 max_union_intersection_time_difference=0.5, max_time_error=0.01, max_time_step=0.23):
     if not osp.exists(osp.dirname(osp.realpath(out_gt_file))):
         os.makedirs(osp.dirname(osp.realpath(out_gt_file)))  # osp.realpath is needed because if out_gt_file is a file name in current directory,
                                                              # then osp.dirname will be '' and os.makedirs fails
