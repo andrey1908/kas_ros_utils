@@ -157,7 +157,7 @@ def check_messages_timestamps(rosbag_file, topics=None, window_size=1.):
         msgs_count_from_header_timestamps = msgs_counts['header_timestamps'][topic]
         plt.plot(np.arange(len(msgs_count_from_header_timestamps)) * window_size, np.array(msgs_count_from_header_timestamps) / window_size)
         plt.title(topic)
-        plt.xlabel('time, s')
+        plt.xlabel('header time (shifted to zero), s')
         plt.ylabel('frequency from header timestamps, hz')
         plt.show()
 
@@ -166,7 +166,7 @@ def check_messages_timestamps(rosbag_file, topics=None, window_size=1.):
         msgs_count_from_publishing_times = msgs_counts['publishing_times'][topic]
         plt.plot(np.arange(len(msgs_count_from_publishing_times)) * window_size, np.array(msgs_count_from_publishing_times) / window_size)
         plt.title(topic)
-        plt.xlabel('time, s')
+        plt.xlabel('publishing time (shifted to zero), s')
         plt.ylabel('frequency from publishing times, hz')
         plt.show()
 
