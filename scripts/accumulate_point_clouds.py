@@ -27,7 +27,7 @@ def accumulate_point_clouds(new_point_cloud_msg: PointCloud2):
 
     accumulate_point_clouds_time = time.time()
 
-    # We work with np.float64 because np.float32 is not precise enough and accumulated point cloud is trembling,
+    # We work with np.float64 because np.float32 is not precise enough if odometry is too far and accumulated point cloud is trembling,
     # but rviz renders only np.float32, so we do all computations in np.float64 and convert final result to np.float32.
     new_point_cloud = pointcloud2_to_xyz_array(new_point_cloud_msg).transpose()
     new_point_cloud = np.vstack((new_point_cloud, np.ones((1, new_point_cloud.shape[1]))))
