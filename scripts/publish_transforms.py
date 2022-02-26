@@ -18,7 +18,9 @@ def publish_transform(odom: Odometry):
     transform = TransformStamped()
     transform.header = odom.header
     transform.child_frame_id = odom.child_frame_id
-    transform.transform.translation = odom.pose.pose.position
+    transform.transform.translation.x = odom.pose.pose.position.x
+    transform.transform.translation.y = odom.pose.pose.position.y
+    transform.transform.translation.z = odom.pose.pose.position.z
     transform.transform.rotation = odom.pose.pose.orientation
 
     tf_broadcaster.sendTransform(transform)

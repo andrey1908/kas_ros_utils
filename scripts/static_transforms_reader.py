@@ -6,7 +6,7 @@ from tf.transformations import quaternion_from_euler
 
 
 def fill_tf_buffer_with_static_transforms_from_bag(bag, tf_buffer):
-    for topic, msg, t in bag.read_messages(topics=['/tf_static']):
+    for _, msg, _ in bag.read_messages(topics=['/tf_static']):
         for transform in msg.transforms:
             tf_buffer.set_transform_static(transform, 'default_authority')
             
