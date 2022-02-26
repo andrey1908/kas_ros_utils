@@ -42,7 +42,7 @@ def accumulate_point_clouds(new_point_cloud_msg):
     new_point_cloud = np.vstack((new_point_cloud, np.ones((1, new_point_cloud.shape[1]))))
 
     lookup_transform_time = time.time()
-    if not odometry_frame_id:
+    if odometry_frame_id is None:
         raise ValueError("No odometry messages yet")
     if use_odometry_from_tf:
         new_point_cloud_pose_tf = tf_buffer.lookup_transform(odometry_frame_id, new_point_cloud_msg.header.frame_id,
