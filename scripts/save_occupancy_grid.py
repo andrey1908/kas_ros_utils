@@ -43,7 +43,12 @@ def save_occupancy_grid(topic_name, out_file):
 
 if __name__ == '__main__':
     parser = build_parser()
-    args, _ = parser.parse_known_args()
+    args, unknown_args = parser.parse_known_args()
+    for i in range(len(unknown_args)-1, -1, -1):
+        if unknown_args[i].startswith('__name:=') or unknown_args[i].startswith('__log:='):
+            del unknown_args[i]
+    if len(unknown_args) > 0:
+        raise RuntimeError("Unknown args: {}".format(unknown_args))
 
     rospy.init_node('save_occupancy_grid')
     save_occupancy_grid(**vars(args))

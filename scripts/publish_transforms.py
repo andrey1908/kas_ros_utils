@@ -28,7 +28,13 @@ def publish_transform(odom: Odometry):
 
 if __name__ == '__main__':
     parser = build_parser()
-    args, _ = parser.parse_known_args()
+    args, unknown_args = parser.parse_known_args()
+    for i in range(len(unknown_args)-1, -1, -1):
+        if unknown_args[i].startswith('__name:=') or unknown_args[i].startswith('__log:='):
+            del unknown_args[i]
+    if len(unknown_args) > 0:
+        raise RuntimeError("Unknown args: {}".format(unknown_args))
+
     odom_topic = args.odom_topic
     
     rospy.init_node('publish_transforms')
