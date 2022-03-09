@@ -21,6 +21,7 @@ def build_parser():
     odometry_source.add_argument('--transforms-topic', type=str)
     parser.add_argument('-num', '--number-of-point-clouds-to-accumulate', required=True, type=int)
     parser.add_argument('--odometry-waiting-time', type=float, default=0.1)
+    parser.add_argument('--keep-running', action='store_true')
     parser.add_argument('-out-topic', '--out-topic', required=True, type=str)
     return parser
 
@@ -34,6 +35,7 @@ def accumulate_point_clouds(new_point_cloud_msg):
     global accumulated_point_cloud_publisher
     global tf_buffer
     global local_tf_buffer
+    global keep_running
 
     accumulate_point_clouds_time = time.time()
 
@@ -44,18 +46,40 @@ def accumulate_point_clouds(new_point_cloud_msg):
 
     lookup_transform_time = time.time()
     if odometry_frame_id is None:
-        raise ValueError("No odometry messages yet")
+        rospy.logwarn("No odometry messages yet")
+        return
     if use_odometry_from_tf:
-        new_point_cloud_pose_tf = tf_buffer.lookup_transform(odometry_frame_id, new_point_cloud_msg.header.frame_id,
-                new_point_cloud_msg.header.stamp, timeout=rospy.Duration.from_sec(odometry_waiting_time))
+        try:
+            new_point_cloud_pose_tf = tf_buffer.lookup_transform(odometry_frame_id, new_point_cloud_msg.header.frame_id,
+                    new_point_cloud_msg.header.stamp, timeout=rospy.Duration.from_sec(odometry_waiting_time))
+        except Exception as e:
+            if accumulate_point_clouds.first:
+                rospy.logwarn("Waiting for first transform. Reason: {}".format(str(e)))
+                return
+            if keep_running:
+                raise
+            else:
+                rospy.logerr(str(e))
+                rospy.signal_shutdown("Error while trying to find transform")
         new_point_cloud_pose = transform_to_numpy(new_point_cloud_pose_tf.transform)
     else:
-        odometry_tf = local_tf_buffer.lookup_transform(odometry_frame_id, odometry_child_frame_id,
-                new_point_cloud_msg.header.stamp, timeout=rospy.Duration.from_sec(odometry_waiting_time))
-        sensor_tf = tf_buffer.lookup_transform(odometry_child_frame_id, new_point_cloud_msg.header.frame_id, new_point_cloud_msg.header.stamp)
+        try:
+            odometry_tf = local_tf_buffer.lookup_transform(odometry_frame_id, odometry_child_frame_id,
+                    new_point_cloud_msg.header.stamp, timeout=rospy.Duration.from_sec(odometry_waiting_time))
+            sensor_tf = tf_buffer.lookup_transform(odometry_child_frame_id, new_point_cloud_msg.header.frame_id, new_point_cloud_msg.header.stamp)
+        except Exception as e:
+            if accumulate_point_clouds.first:
+                rospy.logwarn("Waiting for first transform. Reason: {}".format(str(e)))
+                return
+            if keep_running:
+                raise
+            else:
+                rospy.logerr(str(e))
+                rospy.signal_shutdown("Error while trying to find transform")
         odometry = transform_to_numpy(odometry_tf.transform)
         sensor = transform_to_numpy(sensor_tf.transform)
         new_point_cloud_pose = np.matmul(odometry, sensor)
+    accumulate_point_clouds.first = False
     lookup_transform_time = time.time() - lookup_transform_time
     
     accumulate_point_clouds.point_clouds_with_poses.append([new_point_cloud, new_point_cloud_pose])
@@ -125,6 +149,7 @@ if __name__ == '__main__':
     number_of_point_clouds_to_accumulate = args.number_of_point_clouds_to_accumulate
     odometry_waiting_time = args.odometry_waiting_time
     use_odometry_from_tf = args.odometry_frame_id is not None
+    keep_running = args.keep_running
 
     rospy.init_node('accumulate_point_clouds')
     tf_buffer = tf2_ros.Buffer()
@@ -139,4 +164,5 @@ if __name__ == '__main__':
             rospy.Subscriber(args.transforms_topic, TransformStamped, transform_received)
         odometry_child_frame_id = None
     accumulate_point_clouds.point_clouds_with_poses = deque()
+    accumulate_point_clouds.first = True
     rospy.spin()
