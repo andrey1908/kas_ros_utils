@@ -16,11 +16,11 @@ def build_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--point-cloud-topic', required=True, type=str)
     odometry_source = parser.add_mutually_exclusive_group(required=True)
-    odometry_source.add_argument('--odometry-frame-id', type=str)
-    odometry_source.add_argument('--odometry-topic', type=str)
-    odometry_source.add_argument('--transforms-topic', type=str)
+    odometry_source.add_argument('-odom-frame', '--odometry-frame-id', type=str)
+    odometry_source.add_argument('-odom-topic', '--odometry-topic', type=str)
+    odometry_source.add_argument('-tf-topic', '--transforms-topic', type=str)
     parser.add_argument('-num', '--number-of-point-clouds-to-accumulate', required=True, type=int)
-    parser.add_argument('--odometry-waiting-time', type=float, default=0.1)
+    parser.add_argument('--transform-waiting-time', type=float, default=0.1)
     parser.add_argument('--keep-running', action='store_true')
     parser.add_argument('-out-topic', '--out-topic', required=True, type=str)
     return parser
@@ -30,7 +30,7 @@ def accumulate_point_clouds(new_point_cloud_msg):
     global odometry_frame_id
     global odometry_child_frame_id
     global number_of_point_clouds_to_accumulate
-    global odometry_waiting_time
+    global transform_waiting_time
     global use_odometry_from_tf
     global accumulated_point_cloud_publisher
     global tf_buffer
@@ -51,7 +51,7 @@ def accumulate_point_clouds(new_point_cloud_msg):
     if use_odometry_from_tf:
         try:
             new_point_cloud_pose_tf = tf_buffer.lookup_transform(odometry_frame_id, new_point_cloud_msg.header.frame_id,
-                    new_point_cloud_msg.header.stamp, timeout=rospy.Duration.from_sec(odometry_waiting_time))
+                    new_point_cloud_msg.header.stamp, timeout=rospy.Duration.from_sec(transform_waiting_time))
         except Exception as e:
             if accumulate_point_clouds.first:
                 rospy.logwarn("Waiting for first transform. Reason: {}".format(str(e)))
@@ -65,7 +65,7 @@ def accumulate_point_clouds(new_point_cloud_msg):
     else:
         try:
             odometry_tf = local_tf_buffer.lookup_transform(odometry_frame_id, odometry_child_frame_id,
-                    new_point_cloud_msg.header.stamp, timeout=rospy.Duration.from_sec(odometry_waiting_time))
+                    new_point_cloud_msg.header.stamp, timeout=rospy.Duration.from_sec(transform_waiting_time))
             sensor_tf = tf_buffer.lookup_transform(odometry_child_frame_id, new_point_cloud_msg.header.frame_id, new_point_cloud_msg.header.stamp)
         except Exception as e:
             if accumulate_point_clouds.first:
@@ -147,7 +147,7 @@ if __name__ == '__main__':
 
     odometry_frame_id = args.odometry_frame_id
     number_of_point_clouds_to_accumulate = args.number_of_point_clouds_to_accumulate
-    odometry_waiting_time = args.odometry_waiting_time
+    transform_waiting_time = args.transform_waiting_time
     use_odometry_from_tf = args.odometry_frame_id is not None
     keep_running = args.keep_running
 
