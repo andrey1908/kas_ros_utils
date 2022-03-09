@@ -131,8 +131,6 @@ def transform_received(transform):
         odometry_frame_id = transform.header.frame_id
         odometry_child_frame_id = transform.child_frame_id
 
-    print("Transform delay: {} ms".format((rospy.Time.now() - transform.header.stamp).to_sec() * 1000))
-
     local_tf_buffer.set_transform(transform, 'default_authority')
 
 
