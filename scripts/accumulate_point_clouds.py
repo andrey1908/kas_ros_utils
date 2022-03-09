@@ -18,6 +18,7 @@ def build_parser():
     odometry_source = parser.add_mutually_exclusive_group(required=True)
     odometry_source.add_argument('--odometry-frame-id', type=str)
     odometry_source.add_argument('--odometry-topic', type=str)
+    odometry_source.add_argument('--transforms-topic', type=str)
     parser.add_argument('-num', '--number-of-point-clouds-to-accumulate', required=True, type=int)
     parser.add_argument('--odometry-waiting-time', type=float, default=0.1)
     parser.add_argument('-out-topic', '--out-topic', required=True, type=str)
@@ -94,6 +95,20 @@ def odometry_received(odom):
     transform.transform.translation.z = odom.pose.pose.position.z
     transform.transform.rotation = odom.pose.pose.orientation
 
+    local_tf_buffer.set_transform(odom, 'default_authority')
+    
+
+def transform_received(transform):
+    global odometry_frame_id
+    global odometry_child_frame_id
+    global local_tf_buffer
+
+    if not odometry_frame_id:
+        odometry_frame_id = transform.header.frame_id
+        odometry_child_frame_id = transform.child_frame_id
+
+    print("Transform delay: {} ms".format((rospy.Time.now() - transform.header.stamp).to_sec() * 1000))
+
     local_tf_buffer.set_transform(transform, 'default_authority')
 
 
@@ -109,16 +124,19 @@ if __name__ == '__main__':
     odometry_frame_id = args.odometry_frame_id
     number_of_point_clouds_to_accumulate = args.number_of_point_clouds_to_accumulate
     odometry_waiting_time = args.odometry_waiting_time
-    use_odometry_from_tf = args.odometry_topic is None
+    use_odometry_from_tf = args.odometry_frame_id is not None
 
     rospy.init_node('accumulate_point_clouds')
     tf_buffer = tf2_ros.Buffer()
     listener = tf2_ros.TransformListener(tf_buffer)
     accumulated_point_cloud_publisher = rospy.Publisher(args.out_topic, PointCloud2, queue_size=10)
-    rospy.Subscriber(args.point_cloud_topic, PointCloud2, accumulate_point_clouds, queue_size=1)
+    rospy.Subscriber(args.point_cloud_topic, PointCloud2, accumulate_point_clouds)
     if not use_odometry_from_tf:
         local_tf_buffer  = tf2_ros.Buffer(debug=False)
-        rospy.Subscriber(args.odometry_topic, Odometry, odometry_received)
+        if args.odometry_topic:
+            rospy.Subscriber(args.odometry_topic, Odometry, odometry_received)
+        elif args.transforms_topic:
+            rospy.Subscriber(args.transforms_topic, TransformStamped, transform_received)
         odometry_child_frame_id = None
     accumulate_point_clouds.point_clouds_with_poses = deque()
     rospy.spin()
