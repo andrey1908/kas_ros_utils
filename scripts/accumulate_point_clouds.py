@@ -99,7 +99,7 @@ def accumulate_point_clouds(new_point_cloud_msg):
     accumulate_point_clouds_time = time.time() - accumulate_point_clouds_time
     print("Looking up for transform took {} ms".format(lookup_transform_time * 1000))
     print("Processing took {} ms".format((accumulate_point_clouds_time - lookup_transform_time) * 1000))
-    print()
+    print("")
 
 
 def odometry_received(odom):
