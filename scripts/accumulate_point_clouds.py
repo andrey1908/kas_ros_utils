@@ -46,7 +46,7 @@ def accumulate_point_clouds(new_point_cloud_msg):
 
     lookup_transform_time = time.time()
     if odometry_frame_id is None:
-        rospy.logwarn("No odometry messages yet")
+        rospy.logwarn("No odometry or transform messages yet")
         return
     if use_odometry_from_tf:
         try:
@@ -54,7 +54,7 @@ def accumulate_point_clouds(new_point_cloud_msg):
                     new_point_cloud_msg.header.stamp, timeout=rospy.Duration.from_sec(transform_waiting_time))
         except Exception as e:
             if accumulate_point_clouds.first:
-                rospy.logwarn("Waiting for first transform. Reason: {}".format(str(e)))
+                rospy.logwarn("Waiting for the first transform. Reason: {}".format(str(e)))
                 return
             if keep_running:
                 raise
