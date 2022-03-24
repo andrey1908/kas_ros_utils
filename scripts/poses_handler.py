@@ -40,7 +40,7 @@ def read_poses(bag, topic, use_tqdm=False):
                 raise RuntimeError
         else:
             frame_id = msg.header.frame_id
-        timestamps.append(msg.header.stamp)
+        timestamps.append(msg.header.stamp.to_sec())
         poses.append(ros_to_numpy(msg))
     return timestamps, poses, frame_id, child_frame_id
 

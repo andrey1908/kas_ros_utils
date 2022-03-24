@@ -47,8 +47,8 @@ def get_union_intersection_difference(A, B):
     if not is_ascending(B):
         raise RuntimeError
     
-    union = (max(A[-1], B[-1]) - min(A[0], B[0])).to_sec()
-    intersection = (min(A[-1], B[-1]) - max(A[0], B[0])).to_sec()
+    union = max(A[-1], B[-1]) - min(A[0], B[0])
+    intersection = min(A[-1], B[-1]) - max(A[0], B[0])
     union_intersection_difference = union - intersection
     return union_intersection_difference
 
@@ -77,26 +77,28 @@ def find_boundary_indexes(array, value):
 def find_mutual_indexes(A, B, max_error=0.01):
     # Ascending order is needed for faster filling matching_results variable.
     if not is_ascending(A):
-        raise RuntimeError
+        raise RuntimeError("Sort data before calling find_mutual_indexes()")
     if not is_ascending(B):
-        raise RuntimeError
+        raise RuntimeError("Sort data before calling find_mutual_indexes()")
 
     matching_results = list()
     start_B_index = 0
     for A_index in range(len(A)):
-        while (A[A_index] - B[start_B_index]).to_sec() > max_error:
+        while A[A_index] - B[start_B_index] > max_error:
             start_B_index += 1
             if start_B_index == len(B):
                 break
         if start_B_index == len(B):
             break
         B_index = start_B_index
-        while (B[B_index] - A[A_index]).to_sec() <= max_error:
-            matching_results.append((abs((A[A_index] - B[B_index]).to_sec()), A_index, B_index))
+        while B[B_index] - A[A_index] <= max_error:
+            matching_results.append((abs(A[A_index] - B[B_index]), A_index, B_index))
             B_index += 1
             if B_index == len(B):
                 break
 
+    if len(matching_results) == 0:
+        raise RuntimeError("find_mutual_indexes() cound not find any matches")
     matching_results.sort()
 
     matched_A_indexes = set()
@@ -133,9 +135,6 @@ def find_mutual_indexes(A, B, max_error=0.01):
 
 
 def get_max_step(A, B):
-    A = np.array(list(map(lambda x: x.to_sec(), A)))
-    B = np.array(list(map(lambda x: x.to_sec(), B)))
-
     A_steps = np.abs(np.insert(A, 0, A[0]) - np.append(A, A[-1]))[1:-1]
     B_steps = np.abs(np.insert(B, 0, B[0]) - np.append(B, B[-1]))[1:-1]
     step = max(np.max(A_steps), np.max(B_steps))
@@ -159,9 +158,9 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
     gt_timestamps, gt_poses, _, gt_child_frame_id = read_poses_from_bag_files(gt_rosbag_files, gt_topic, use_tqdm=True)
     results_timestamps, results_poses, _, results_child_frame_id = read_poses_from_bag_files(results_rosbag_files, results_topic, use_tqdm=True)
     if not is_ascending(gt_timestamps):
-        raise RuntimeError
+        raise RuntimeError("Gt poses not sorted")
     if not is_ascending(results_timestamps):
-        raise RuntimeError
+        raise RuntimeError("Results poses not sorted")
     gt_timestamps = np.array(gt_timestamps)
     gt_poses = np.array(gt_poses)
     results_timestamps = np.array(results_timestamps)
