@@ -21,8 +21,8 @@ def ros_to_numpy(ros_message):
 
 
 def read_poses(bag, topic, use_tqdm=False):
-    timestamps = list()
     poses = list()
+    timestamps = list()
     frame_id = None
     child_frame_id = None
     if use_tqdm:
@@ -40,29 +40,29 @@ def read_poses(bag, topic, use_tqdm=False):
                 raise RuntimeError
         else:
             frame_id = msg.header.frame_id
-        timestamps.append(msg.header.stamp.to_sec())
         poses.append(ros_to_numpy(msg))
-    return timestamps, poses, frame_id, child_frame_id
+        timestamps.append(msg.header.stamp.to_sec())
+    return poses, timestamps, frame_id, child_frame_id
 
 
 def read_poses_from_bag_files(rosbag_files, topic, use_tqdm=False):
     if isinstance(rosbag_files, str):
         rosbag_files = [rosbag_files]
-    combined_timestamps = list()
     combined_poses = list()
+    combined_timestamps = list()
     prev_frame_id = None
     prev_child_frame_id = None
     for rosbag_file in rosbag_files:
         with rosbag.Bag(rosbag_file) as bag:
-            timestamps, poses, frame_id, child_frame_id = read_poses(bag, topic, use_tqdm=use_tqdm)
-            combined_timestamps += timestamps
+            poses, timestamps, frame_id, child_frame_id = read_poses(bag, topic, use_tqdm=use_tqdm)
             combined_poses += poses
+            combined_timestamps += timestamps
             if prev_frame_id is not None:
                 if (prev_frame_id != frame_id) or (prev_child_frame_id != child_frame_id):
                     raise RuntimeError()
             prev_frame_id = frame_id
             prev_child_frame_id = child_frame_id
-    return combined_timestamps, combined_poses, frame_id, child_frame_id
+    return combined_poses, combined_timestamps, frame_id, child_frame_id
 
 
 def move_first_pose_to_the_origin(poses):

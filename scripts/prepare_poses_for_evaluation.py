@@ -157,8 +157,8 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
         gt_rosbag_files = [gt_rosbag_files]
     if isinstance(results_rosbag_files, str):
         results_rosbag_files = [results_rosbag_files]
-    gt_timestamps, gt_poses, _, gt_child_frame_id = read_poses_from_bag_files(gt_rosbag_files, gt_topic, use_tqdm=True)
-    results_timestamps, results_poses, _, results_child_frame_id = read_poses_from_bag_files(results_rosbag_files, results_topic, use_tqdm=True)
+    gt_poses, gt_timestamps, _, gt_child_frame_id = read_poses_from_bag_files(gt_rosbag_files, gt_topic, use_tqdm=True)
+    results_poses, results_timestamps, _, results_child_frame_id = read_poses_from_bag_files(results_rosbag_files, results_topic, use_tqdm=True)
     if not is_ascending(gt_timestamps):
         raise RuntimeError("Gt poses not sorted")
     if not is_ascending(results_timestamps):
