@@ -128,6 +128,8 @@ def find_mutual_indexes(A, B, max_error=0.01):
         max_matching_error = max(max_matching_error, matching_result[0])
 
     A_indexes, B_indexes = map(list, zip(*sorted(zip(A_indexes, B_indexes))))
+    if not is_ascending(A_indexes) or not is_ascending(B_indexes):
+        raise RuntimeError("Indexes are not sorted after matching with find_mutual_indexes(). This should not happen.")
     
     print('Found {} mutual indexes in arrays with {} and {} elements'.format(len(A_indexes), len(A), len(B)))
     print('Max error: {:.3f} ms'.format(max_matching_error * 1000))
@@ -174,10 +176,6 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
 
     print("Finding mutual indexes for poses...")
     gt_indexes, results_indexes = find_mutual_indexes(gt_timestamps, results_timestamps, max_error=max_time_error)
-    if not is_ascending(gt_indexes):
-        raise RuntimeError
-    if not is_ascending(results_indexes):
-        raise RuntimeError
 
     print("Getting poses with mutual indexes...")
     gt_poses = gt_poses[gt_indexes]
