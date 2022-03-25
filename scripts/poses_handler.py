@@ -1,5 +1,6 @@
 from tqdm import tqdm
 import numpy as np
+import rospy
 import rosbag
 from geometry_msgs.msg import PoseStamped, Point, Quaternion, Vector3
 from nav_msgs.msg import Path
@@ -303,11 +304,11 @@ def write_poses(out_file, poses):
 def poses_to_ros_path(poses, timestamps):
     path = Path()
     path.header.frame_id = 'map'
-    path.header.stamp = timestamps[0]
+    path.header.stamp = rospy.Time.from_seconds(timestamps[0])
     for pose, timestamp in zip(poses, timestamps):
         ros_pose = numpy_to_pose(pose)
         pose_stamped = PoseStamped(pose=ros_pose)
         pose_stamped.header.frame_id = 'map'
-        pose_stamped.header.stamp = timestamp
+        pose_stamped.header.stamp = rospy.Time.from_seconds(timestamp)
         path.poses.append(pose_stamped)
     return path
