@@ -3,11 +3,11 @@ import rosbag
 import rospy
 import tf2_ros
 import argparse
-import numpy as np
 import os
 import os.path as osp
 from static_transforms_reader import fill_tf_buffer_with_static_transforms_from_file
-from poses_handler import read_poses_from_bag_files, move_first_pose_to_the_origin, transform_poses, write_poses, poses_to_ros_path
+from poses_handler import read_poses_from_bag_files, get_union_intersection_time_difference, match_poses, get_max_time_step, \
+    align_poses, move_first_pose_to_the_origin, transform_poses, write_poses, poses_to_ros_path, is_ascending
 from ros_numpy.geometry import transform_to_numpy
 
 
@@ -22,7 +22,7 @@ def build_parser():
     parser.add_argument('-out-gt', '--out-gt-file', required=True, type=str, help="output file with gt poses in kitti format")
     parser.add_argument('-out-res', '--out-results-file', required=True, type=str, help="output file with SLAM poses in kitti format")
 
-    parser.add_argument('-transforms-source', '--transforms-source-file', type=str, help=".bag, .urdf or .launch file to read static transforms from if needed")
+    parser.add_argument('-transforms-source', '--transforms-source-file', type=str, help=".bag, .urdf or .launch file to read static transforms if needed")
     parser.add_argument('-out-trajectories', '--out-trajectories-rosbag-file', type=str, help="output .bag file to write gt and SLAM trajectories")
 
     parser.add_argument('--max-union-intersection-time-difference', type=float, default=0.5,
@@ -30,117 +30,6 @@ def build_parser():
     parser.add_argument('--max-time-error', type=float, default=0.01, help="Max time error during matching gt and SLAM poses.")
     parser.add_argument('--max-time-step', type=float, default=0.23, help="Max time step in gt and SLAM poses after matching.")
     return parser
-
-
-def is_ascending(list):
-    previous = list[0]
-    for number in list:
-        if previous > number:
-            return False
-        previous = number
-    return True
-
-
-def get_union_intersection_difference(A, B):
-    if not is_ascending(A):
-        raise RuntimeError
-    if not is_ascending(B):
-        raise RuntimeError
-    
-    union = max(A[-1], B[-1]) - min(A[0], B[0])
-    intersection = min(A[-1], B[-1]) - max(A[0], B[0])
-    union_intersection_difference = union - intersection
-    return union_intersection_difference
-
-
-def find_boundary_indexes(array, value):
-    if len(array) == 0:
-        raise RuntimeError
-    lower = None
-    lower_min_difference = -1
-    upper = None
-    upper_min_difference = -1
-    for i in range(len(array)):
-        if array[i] == value:
-            raise RuntimeError
-        if array[i] < value:
-            if lower_min_difference > value - array[i] or lower_min_difference < 0:
-                lower = i
-                lower_min_difference = value - array[i]
-        if array[i] > value:
-            if upper_min_difference > array[i] - value or upper_min_difference < 0:
-                upper = i
-                upper_min_difference = array[i] - value
-    return lower, upper
-
-
-def find_mutual_indexes(A, B, max_error=0.01):
-    # Ascending order is needed for faster filling matching_results variable.
-    if not is_ascending(A):
-        raise RuntimeError("Sort data before calling find_mutual_indexes()")
-    if not is_ascending(B):
-        raise RuntimeError("Sort data before calling find_mutual_indexes()")
-
-    matching_results = list()
-    start_B_index = 0
-    for A_index in range(len(A)):
-        while A[A_index] - B[start_B_index] > max_error:
-            start_B_index += 1
-            if start_B_index == len(B):
-                break
-        if start_B_index == len(B):
-            break
-        B_index = start_B_index
-        while B[B_index] - A[A_index] <= max_error:
-            matching_results.append((abs(A[A_index] - B[B_index]), A_index, B_index))
-            B_index += 1
-            if B_index == len(B):
-                break
-
-    if len(matching_results) == 0:
-        raise RuntimeError("find_mutual_indexes() cound not find any matches")
-    matching_results.sort()
-
-    matched_A_indexes = set()
-    matched_B_indexes = set()
-    A_indexes = list()
-    B_indexes = list()
-    max_matching_error = 0
-    for matching_result in matching_results:
-        A_index = matching_result[1]
-        B_index = matching_result[2]
-        if (A_index in matched_A_indexes) or (B_index in matched_B_indexes):
-            continue
-        if len(A_indexes) > 0:
-            lower, upper = find_boundary_indexes(A_indexes, A_index)
-            lower_B_condition = True
-            upper_B_condition = True
-            if lower is not None:
-                lower_B_condition = B_indexes[lower] < B_index
-            if upper is not None:
-                upper_B_condition = B_indexes[upper] > B_index
-            if not lower_B_condition or not upper_B_condition:
-                continue
-        matched_A_indexes.add(A_index)
-        matched_B_indexes.add(B_index)
-        A_indexes.append(A_index)
-        B_indexes.append(B_index)
-        max_matching_error = max(max_matching_error, matching_result[0])
-
-    A_indexes, B_indexes = map(list, zip(*sorted(zip(A_indexes, B_indexes))))
-    if not is_ascending(A_indexes) or not is_ascending(B_indexes):
-        raise RuntimeError("Indexes are not sorted after matching with find_mutual_indexes(). This should not happen.")
-    
-    print('Found {} mutual indexes in arrays with {} and {} elements'.format(len(A_indexes), len(A), len(B)))
-    print('Max error: {:.3f} ms'.format(max_matching_error * 1000))
-    return A_indexes, B_indexes
-
-
-def get_max_step(A, B):
-    A_steps = np.abs(np.insert(A, 0, A[0]) - np.append(A, A[-1]))[1:-1]
-    B_steps = np.abs(np.insert(B, 0, B[0]) - np.append(B, B[-1]))[1:-1]
-    step = max(np.max(A_steps), np.max(B_steps))
-    return step
 
 
 def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files, results_topic,
@@ -163,34 +52,31 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
         raise RuntimeError("Gt poses not sorted")
     if not is_ascending(results_timestamps):
         raise RuntimeError("Results poses not sorted")
-    gt_timestamps = np.array(gt_timestamps)
-    gt_poses = np.array(gt_poses)
-    results_timestamps = np.array(results_timestamps)
-    results_poses = np.array(results_poses)
 
-    union_intersection_difference = get_union_intersection_difference(gt_timestamps, results_timestamps)
-    print("Union intersection difference: {:.3f} s".format(union_intersection_difference))
-    if union_intersection_difference > max_union_intersection_time_difference:
-        raise RuntimeError("Union intersection difference is {:.3f}, but it should not be greater than {:.3f}".format(union_intersection_difference,
-            max_union_intersection_time_difference))
+    union_intersection_time_difference = get_union_intersection_time_difference(gt_timestamps, results_timestamps)
+    print("Union intersection difference: {:.3f} s".format(union_intersection_time_difference))
+    if union_intersection_time_difference > max_union_intersection_time_difference:
+        raise RuntimeError("Union intersection difference is {:.3f}, but it should not be greater than {:.3f}".format(
+            union_intersection_time_difference, max_union_intersection_time_difference))
 
-    print("Finding mutual indexes for poses...")
-    gt_indexes, results_indexes = find_mutual_indexes(gt_timestamps, results_timestamps, max_error=max_time_error)
+    print("Matching poses...")
+    matched_gt_poses, matched_gt_timestamps, matched_results_poses, matched_results_timestamps, max_matching_error = \
+        match_poses(gt_poses, gt_timestamps, results_poses, results_timestamps, max_time_error=max_time_error)
+    print('Found {} mutual indexes in arrays with {} and {} elements'.format(len(matched_gt_poses), len(gt_poses), len(results_poses)))
+    print('Max error: {:.3f} ms'.format(max_matching_error * 1000))
 
-    print("Getting poses with mutual indexes...")
-    gt_poses = gt_poses[gt_indexes]
-    gt_timestamps = gt_timestamps[gt_indexes]
-    results_poses = results_poses[results_indexes]
-    results_timestamps = results_timestamps[results_indexes]
-
-    max_step = get_max_step(gt_timestamps, results_timestamps)
+    max_step = max(get_max_time_step(matched_gt_timestamps), get_max_time_step(matched_results_timestamps))
     print('Max step in matched timestamps: {:.3f} s'.format(max_step))
     if max_step > max_time_step:
         raise RuntimeError("Max step in matched poses is {:.3f}, but it should not be greater than {:.3f}".format(max_step, max_time_step))
 
+    print("Aligning poses...")
+    aligned_gt_poses, aligned_results_poses, aligned_timestamps = \
+        align_poses(matched_gt_poses, matched_gt_timestamps, matched_results_poses, matched_results_timestamps)
+
     print("Moving poses to the origin...")
-    move_first_pose_to_the_origin(gt_poses)
-    move_first_pose_to_the_origin(results_poses)
+    move_first_pose_to_the_origin(aligned_gt_poses)
+    move_first_pose_to_the_origin(aligned_results_poses)
 
     if gt_child_frame_id != results_child_frame_id:
         if not transforms_source_file:
@@ -202,16 +88,16 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
         ros_transform = tf_buffer.lookup_transform(results_child_frame_id, gt_child_frame_id, rospy.Time())
         transform = transform_to_numpy(ros_transform.transform)
         print("Transforming SLAM poses to gt frame...")
-        transform_poses(results_poses, transform)
+        transform_poses(aligned_results_poses, transform)
 
     print("Writing poses in kitti format...")
-    write_poses(out_gt_file, gt_poses)
-    write_poses(out_results_file, results_poses)
+    write_poses(out_gt_file, aligned_gt_poses)
+    write_poses(out_results_file, aligned_results_poses)
 
     if out_trajectories_rosbag_file:
         print("Writing trajectories in rosbag...")
-        gt_path = poses_to_ros_path(gt_poses, gt_timestamps)
-        results_path = poses_to_ros_path(results_poses, results_timestamps)
+        gt_path = poses_to_ros_path(aligned_gt_poses, aligned_timestamps)
+        results_path = poses_to_ros_path(aligned_results_poses, aligned_timestamps)
         with rosbag.Bag(out_trajectories_rosbag_file, 'w') as out_bag:
             out_bag.write('/gt_path', gt_path, gt_path.header.stamp)
             out_bag.write('/results_path', results_path, results_path.header.stamp)
@@ -223,4 +109,3 @@ if __name__ == '__main__':
     parser = build_parser()
     args = parser.parse_args()
     prepare_poses_for_evaluation(**vars(args))
-    

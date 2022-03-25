@@ -4,6 +4,16 @@ import rosbag
 from geometry_msgs.msg import PoseStamped, Point, Quaternion, Vector3
 from nav_msgs.msg import Path
 from ros_numpy.geometry import transform_to_numpy, pose_to_numpy, numpy_to_pose
+from tf.transformations import quaternion_from_matrix, quaternion_slerp, quaternion_matrix
+
+
+def is_ascending(list):
+    previous = list[0]
+    for number in list:
+        if previous > number:
+            return False
+        previous = number
+    return True
 
 
 def ros_to_numpy(ros_message):
@@ -65,17 +75,217 @@ def read_poses_from_bag_files(rosbag_files, topic, use_tqdm=False):
     return combined_poses, combined_timestamps, frame_id, child_frame_id
 
 
+def get_union_intersection_time_difference(timestamps1, timestamps2):
+    sorted_timestamps_1 = sorted(timestamps1)
+    sorted_timestamps_2 = sorted(timestamps2)
+
+    union = max(sorted_timestamps_1[-1], sorted_timestamps_2[-1]) - min(sorted_timestamps_1[0], sorted_timestamps_2[0])
+    intersection = min(sorted_timestamps_1[-1], sorted_timestamps_2[-1]) - max(sorted_timestamps_1[0], sorted_timestamps_2[0])
+    if intersection < 0:
+        return union + intersection
+    else:
+        return union - intersection
+
+
+def get_max_time_step(timestamps):
+    if not is_ascending(timestamps):
+        raise RuntimeError("get_max_time_step() got unsorted timestamps")
+
+    max_time_step = 0
+    previous_timestamp = timestamps[0]
+    for timestamp in timestamps:
+        time_step = timestamp - previous_timestamp
+        max_time_step = max(max_time_step, time_step)
+        previous_timestamp = timestamp
+    return max_time_step
+
+
 def move_first_pose_to_the_origin(poses):
     first_pose_inv = np.linalg.inv(poses[0])
     for i in range(len(poses)):
         poses[i] = np.matmul(first_pose_inv, poses[i])
 
 
-# 'transform' should move frame that is used now to desired frame
+# 'transform' moves frame that is used now to desired frame
 def transform_poses(poses, transform):
     transform_inv = np.linalg.inv(transform)
     for i in range(len(poses)):
         poses[i] = np.matmul(np.matmul(transform_inv, poses[i]), transform)
+
+
+def find_boundary_indexes(array, value):
+    if len(array) == 0:
+        raise RuntimeError("Should not happen")
+    lower = None
+    lower_min_difference = -1
+    upper = None
+    upper_min_difference = -1
+    for i in range(len(array)):
+        if array[i] == value:
+            raise RuntimeError("Should not happen")
+        if array[i] < value:
+            if lower_min_difference > value - array[i] or lower_min_difference < 0:
+                lower = i
+                lower_min_difference = value - array[i]
+        if array[i] > value:
+            if upper_min_difference > array[i] - value or upper_min_difference < 0:
+                upper = i
+                upper_min_difference = array[i] - value
+    return lower, upper
+
+
+def match_poses(poses1, timestamps1, poses2, timestamps2, max_time_error=0.01):
+    if not is_ascending(timestamps1):
+        raise RuntimeError("match_poses() got unsorted timestamps1")
+    if not is_ascending(timestamps2):
+        raise RuntimeError("match_poses() got unsorted timestamps2")
+    if len(poses1) != len(timestamps1):
+        raise RuntimeError("Different number of poses1 ({}) and timestamps1 ({})".format(len(poses1), len(timestamps1)))
+    if len(poses2) != len(timestamps2):
+        raise RuntimeError("Different number of poses2 ({}) and timestamps2 ({})".format(len(poses2), len(timestamps2)))
+
+    matching_results = list()
+    start_index_2 = 0
+    for index_1 in range(len(timestamps1)):
+        while timestamps1[index_1] - timestamps2[start_index_2] > max_time_error:
+            start_index_2 += 1
+            if start_index_2 == len(timestamps2):
+                break
+        if start_index_2 == len(timestamps2):
+            break
+        index_2 = start_index_2
+        while timestamps2[index_2] - timestamps1[index_1] <= max_time_error:
+            matching_results.append((abs(timestamps1[index_1] - timestamps2[index_2]), index_1, index_2))
+            index_2 += 1
+            if index_2 == len(timestamps2):
+                break
+
+    if len(matching_results) == 0:
+        raise RuntimeError("match_poses() cound not find any matches")
+    matching_results.sort()
+
+    matched_indexes_1 = set()
+    matched_indexes_2 = set()
+    indexes_1 = list()
+    indexes_2 = list()
+    max_matching_error = 0
+    for matching_result in matching_results:
+        index_1 = matching_result[1]
+        index_2 = matching_result[2]
+        if (index_1 in matched_indexes_1) or (index_2 in matched_indexes_2):
+            continue
+        if len(indexes_1) > 0:
+            lower, upper = find_boundary_indexes(indexes_1, index_1)
+            lower_B_condition = True
+            upper_B_condition = True
+            if lower is not None:
+                lower_B_condition = indexes_2[lower] < index_2
+            if upper is not None:
+                upper_B_condition = indexes_2[upper] > index_2
+            if not lower_B_condition or not upper_B_condition:
+                continue
+        matched_indexes_1.add(index_1)
+        matched_indexes_2.add(index_2)
+        indexes_1.append(index_1)
+        indexes_2.append(index_2)
+        max_matching_error = max(max_matching_error, matching_result[0])
+
+    indexes_1, indexes_2 = map(list, zip(*sorted(zip(indexes_1, indexes_2))))
+    if not is_ascending(indexes_1) or not is_ascending(indexes_2):
+        raise RuntimeError("Matched indexes are not sorted after matching with match_poses(). This should not happen.")
+
+    matched_poses_1 = list()
+    matched_timestamps_1 = list()
+    matched_poses_2 = list()
+    matched_timestamps_2 = list()
+    for index_1, index_2 in zip(indexes_1, indexes_2):
+        matched_poses_1.append(poses1[index_1])
+        matched_timestamps_1.append(timestamps1[index_1])
+        matched_poses_2.append(poses2[index_2])
+        matched_timestamps_2.append(timestamps2[index_2])
+
+    return matched_poses_1, matched_timestamps_1, matched_poses_2, matched_timestamps_2, max_matching_error
+
+
+def interpolate_pose(pose1, timestamp1, pose2, timestamp2, interpolated_timestamp):
+    if not timestamp1 <= interpolated_timestamp <= timestamp2:
+        raise RuntimeError("Condition timestamp1 <= interpolated_timestamp <= timestamp2 is not met \
+({} <= {} <= {} is not true)".format(timestamp1, interpolated_timestamp, timestamp2))
+
+    if timestamp1 == timestamp2:
+        if not (pose1 == pose2).all():
+            raise RuntimeError("Can not interpolate: timestamp1 == timestamp2, but pose1 != pose2")
+        return pose1.copy()
+
+    fraction = (interpolated_timestamp - timestamp1) / (timestamp2 - timestamp1)
+
+    quaternion1 = quaternion_from_matrix(pose1)
+    quaternion2 = quaternion_from_matrix(pose2)
+    interpolated_quaternion = quaternion_slerp(quaternion1, quaternion2, fraction)
+
+    translation1 = pose1[:3, 3]
+    translation2 = pose2[:3, 3]
+    interpolated_translation = (1 - fraction) * translation1 + fraction * translation2
+
+    interpolated_pose = quaternion_matrix(interpolated_quaternion)
+    interpolated_pose[:3, 3] = interpolated_translation
+    return interpolated_pose
+
+
+def interpolate_poses(poses, timestamps, interpolated_timestamps):
+    if len(poses) != len(timestamps):
+        raise RuntimeError("Different number of poses ({}) and timestamps ({})".format(len(poses), len(timestamps)))
+    if not is_ascending(interpolated_timestamps):
+        raise RuntimeError("interpolate_poses() got unsorted interpolated_timestamps")
+
+    workaround_list = list(range(len(poses)))
+    # can't compare numpy arrays, so use workaround_list to avoid it
+    sorted_timestamps, _, sorted_poses = map(list, zip(*sorted(zip(timestamps, workaround_list, poses))))
+
+    if interpolated_timestamps[0] < sorted_timestamps[0]:
+        raise RuntimeError("Timestamp for interpolation {} is less than \
+the earliest pose timestamp {}".format(interpolated_timestamps[0], sorted_timestamps[0]))
+    index = 0
+    interpolated_poses = list()
+    for interpolated_timestamp in interpolated_timestamps:
+        while sorted_timestamps[index] < interpolated_timestamp:
+            index += 1
+            if index == len(sorted_timestamps):
+                raise RuntimeError("Timestamp for interpolation {} is greater than \
+the latest pose timestamp {}".format(interpolated_timestamp, sorted_timestamps[-1]))
+
+        if interpolated_timestamp == sorted_timestamps[index]:
+            interpolated_poses.append(sorted_poses[index])
+            continue
+
+        interpolated_poses.append(interpolate_pose(
+            sorted_poses[index-1], sorted_timestamps[index-1], sorted_poses[index], sorted_timestamps[index], interpolated_timestamp))
+
+    return interpolated_poses
+
+
+def align_poses(poses1, timestamps1, poses2, timestamps2):
+    if not is_ascending(timestamps1):
+        raise RuntimeError("align_poses() got unsorted timestamps1")
+    if not is_ascending(timestamps2):
+        raise RuntimeError("align_poses() got unsorted timestamps2")
+    if len(poses1) != len(timestamps1) or len(poses1) != len(poses2) or len(poses1) != len(timestamps2):
+        raise RuntimeError("Different number of poses1 ({}), timestamps1 ({}), poses2 ({}) or timestamps2 ({})".format(\
+            len(poses1), len(timestamps1), len(poses2), len(timestamps2)))
+
+    min_interpolation_timestamp = max(timestamps1[0], timestamps2[0])
+    max_interpolation_timestamp = min(timestamps1[-1], timestamps2[-1])
+
+    alinged_timestamps = list()
+    for timestamp1, timestamp2 in zip(timestamps1, timestamps2):
+        alinged_timestamp = (timestamp1 + timestamp2) / 2
+        alinged_timestamp = max(min_interpolation_timestamp, alinged_timestamp)
+        alinged_timestamp = min(max_interpolation_timestamp, alinged_timestamp)
+        alinged_timestamps.append(alinged_timestamp)
+
+    alinged_poses_1 = interpolate_poses(poses1, timestamps1, alinged_timestamps)
+    alinged_poses_2 = interpolate_poses(poses2, timestamps2, alinged_timestamps)
+    return alinged_poses_1, alinged_poses_2, alinged_timestamps
 
 
 def write_poses(out_file, poses):
