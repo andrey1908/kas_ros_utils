@@ -10,7 +10,7 @@ if [ ! -d "$1" ]; then
     exit 1
 fi
 
-rosbags=$(find $1 -name '*.bag')
+rosbags=$(find $1 -maxdepth 1 -name '*.bag')
 echo $rosbags | tr ' ' '\n'
 echo ''
 
