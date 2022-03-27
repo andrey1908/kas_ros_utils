@@ -10,12 +10,12 @@ if [ ! -d "$1" ]; then
     exit 1
 fi
 
-rosbags=$(find $1 -maxdepth 1 -name '*.bag')
-echo $rosbags | tr ' ' '\n'
+ROSBAGS=$(find $1 -maxdepth 1 -name '*.bag')
+echo $ROSBAGS | tr ' ' '\n'
 echo ''
 
-rewrite_rosbag_script=$(dirname $0)/../scripts/rewrite_rosbag.py
-if [ ! -f "$rewrite_rosbag_script" ]; then
+REWRITE_ROSBAG_SCRIPT=$(dirname $0)/../scripts/rewrite_rosbag.py
+if [ ! -f "$REWRITE_ROSBAG_SCRIPT" ]; then
     echo "Script for rewriting doesn't exist. Expected path: $rewrite_rosbag_script"
     exit 1
 fi
@@ -23,18 +23,18 @@ fi
 echo "Start processing..."
 echo ''
 
-for rosbag in $rosbags; do
-    (echo $rosbag && \
+for ROSBAG in $ROSBAGS; do
+    (echo $ROSBAG && \
     echo "Reindexing..."
-    orig_rosbag=${rosbag/%.bag/.orig.bag} && \
-    rosbag reindex $rosbag && \
-    rm $orig_rosbag && \
+    ORIG_ROSBAG=${ROSBAG/%.bag/.orig.bag} && \
+    rosbag reindex $ROSBAG && \
+    rm $ORIG_ROSBAG && \
     echo "Rewriting..."
-    rewritten_rosbag=${rosbag/%.bag/_rewritten.bag} && \
-    python $rewrite_rosbag_script -rosbag $rosbag -out $rewritten_rosbag && \
-    mv $rosbag $orig_rosbag && \
-    mv $rewritten_rosbag $rosbag && \
-    rm $orig_rosbag && \
+    REWRITTEN_ROSBAG=${ROSBAG/%.bag/_rewritten.bag} && \
+    python $REWRITE_ROSBAG_SCRIPT -rosbag $ROSBAG -out $REWRITTEN_ROSBAG && \
+    mv $ROSBAG $ORIG_ROSBAG && \
+    mv $REWRITTEN_ROSBAG $ROSBAG && \
+    rm $ORIG_ROSBAG && \
     echo "Done."
     echo '') || exit 1
 done
