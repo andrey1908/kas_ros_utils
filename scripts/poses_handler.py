@@ -90,7 +90,7 @@ def get_union_intersection_time_difference(timestamps1, timestamps2):
 
 def get_max_time_step(timestamps):
     if not is_ascending(timestamps):
-        raise RuntimeError("get_max_time_step() got unsorted timestamps")
+        raise ValueError("get_max_time_step() got unsorted timestamps")
 
     max_time_step = 0
     previous_timestamp = timestamps[0]
@@ -137,13 +137,13 @@ def find_boundary_indexes(array, value):
 
 def match_poses(poses1, timestamps1, poses2, timestamps2, max_time_error=0.01):
     if not is_ascending(timestamps1):
-        raise RuntimeError("match_poses() got unsorted timestamps1")
+        raise ValueError("match_poses() got unsorted timestamps1")
     if not is_ascending(timestamps2):
-        raise RuntimeError("match_poses() got unsorted timestamps2")
+        raise ValueError("match_poses() got unsorted timestamps2")
     if len(poses1) != len(timestamps1):
-        raise RuntimeError("Different number of poses1 ({}) and timestamps1 ({})".format(len(poses1), len(timestamps1)))
+        raise ValueError("Different number of poses1 ({}) and timestamps1 ({})".format(len(poses1), len(timestamps1)))
     if len(poses2) != len(timestamps2):
-        raise RuntimeError("Different number of poses2 ({}) and timestamps2 ({})".format(len(poses2), len(timestamps2)))
+        raise ValueError("Different number of poses2 ({}) and timestamps2 ({})".format(len(poses2), len(timestamps2)))
 
     matching_results = list()
     start_index_2 = 0
@@ -162,7 +162,7 @@ def match_poses(poses1, timestamps1, poses2, timestamps2, max_time_error=0.01):
                 break
 
     if len(matching_results) == 0:
-        raise RuntimeError("match_poses() cound not find any matches")
+        raise RuntimeError("match_poses() cound not find any matches. Try to increase max_time_error for matching.")
     matching_results.sort()
 
     matched_indexes_1 = set()
@@ -210,7 +210,7 @@ def match_poses(poses1, timestamps1, poses2, timestamps2, max_time_error=0.01):
 
 def interpolate_pose(pose1, timestamp1, pose2, timestamp2, interpolated_timestamp):
     if not timestamp1 <= interpolated_timestamp <= timestamp2:
-        raise RuntimeError("Condition timestamp1 <= interpolated_timestamp <= timestamp2 is not met \
+        raise ValueError("Condition timestamp1 <= interpolated_timestamp <= timestamp2 is not met \
 ({} <= {} <= {} is not true)".format(timestamp1, interpolated_timestamp, timestamp2))
 
     if timestamp1 == timestamp2:
@@ -235,9 +235,9 @@ def interpolate_pose(pose1, timestamp1, pose2, timestamp2, interpolated_timestam
 
 def interpolate_poses(poses, timestamps, interpolated_timestamps):
     if len(poses) != len(timestamps):
-        raise RuntimeError("Different number of poses ({}) and timestamps ({})".format(len(poses), len(timestamps)))
+        raise ValueError("Different number of poses ({}) and timestamps ({})".format(len(poses), len(timestamps)))
     if not is_ascending(interpolated_timestamps):
-        raise RuntimeError("interpolate_poses() got unsorted interpolated_timestamps")
+        raise ValueError("interpolate_poses() got unsorted interpolated_timestamps")
 
     workaround_list = list(range(len(poses)))
     # can't compare numpy arrays, so use workaround_list to avoid it
@@ -267,11 +267,11 @@ the latest pose timestamp {}".format(interpolated_timestamp, sorted_timestamps[-
 
 def align_poses(poses1, timestamps1, poses2, timestamps2):
     if not is_ascending(timestamps1):
-        raise RuntimeError("align_poses() got unsorted timestamps1")
+        raise ValueError("align_poses() got unsorted timestamps1")
     if not is_ascending(timestamps2):
-        raise RuntimeError("align_poses() got unsorted timestamps2")
+        raise ValueError("align_poses() got unsorted timestamps2")
     if len(poses1) != len(timestamps1) or len(poses1) != len(poses2) or len(poses1) != len(timestamps2):
-        raise RuntimeError("Different number of poses1 ({}), timestamps1 ({}), poses2 ({}) or timestamps2 ({})".format(\
+        raise ValueError("Different number of poses1 ({}), timestamps1 ({}), poses2 ({}) or timestamps2 ({})".format(\
             len(poses1), len(timestamps1), len(poses2), len(timestamps2)))
 
     min_interpolation_timestamp = max(timestamps1[0], timestamps2[0])
