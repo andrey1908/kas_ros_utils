@@ -13,8 +13,8 @@ def build_parser():
 
 
 def rewrite_rosbag(rosbag_file, out_rosbag_file, topics=None):
-    with rosbag.Bag(out_rosbag_file, 'w') as out_bag:
-        with rosbag.Bag(rosbag_file, 'r') as in_bag:
+    with rosbag.Bag(rosbag_file, 'r') as in_bag:
+        with rosbag.Bag(out_rosbag_file, 'w') as out_bag:
             messages_reader = in_bag.read_messages(topics=topics)
             total_number = in_bag.get_message_count(topic_filters=topics)
             for topic, msg, t in tqdm(messages_reader, total=total_number):

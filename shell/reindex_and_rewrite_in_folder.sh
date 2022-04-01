@@ -24,18 +24,18 @@ echo "Start processing..."
 echo ''
 
 for ROSBAG in $ROSBAGS; do
-    (echo $ROSBAG && \
-    echo "Reindexing..."
-    ORIG_ROSBAG=${ROSBAG/%.bag/.orig.bag} && \
-    rosbag reindex $ROSBAG && \
-    rm $ORIG_ROSBAG && \
-    echo "Rewriting..."
-    REWRITTEN_ROSBAG=${ROSBAG/%.bag/_rewritten.bag} && \
-    python $REWRITE_ROSBAG_SCRIPT -rosbag $ROSBAG -out $REWRITTEN_ROSBAG && \
-    mv $ROSBAG $ORIG_ROSBAG && \
-    mv $REWRITTEN_ROSBAG $ROSBAG && \
-    rm $ORIG_ROSBAG && \
-    echo "Done."
+    (echo $ROSBAG &&
+    echo "Reindexing..." &&
+    ORIG_ROSBAG=${ROSBAG/%.bag/.orig.bag} &&
+    rosbag reindex $ROSBAG &&
+    rm $ORIG_ROSBAG &&
+    echo "Rewriting..." &&
+    REWRITTEN_ROSBAG=${ROSBAG/%.bag/_rewritten.bag} &&
+    python $REWRITE_ROSBAG_SCRIPT -rosbag $ROSBAG -out $REWRITTEN_ROSBAG &&
+    mv $ROSBAG $ORIG_ROSBAG &&
+    mv $REWRITTEN_ROSBAG $ROSBAG &&
+    rm $ORIG_ROSBAG &&
+    echo "Done." &&
     echo '') || exit 1
 done
 
