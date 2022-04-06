@@ -22,6 +22,8 @@ def build_parser():
     parser.add_argument('-out-gt', '--out-gt-file', required=True, type=str, help="output file with gt poses in kitti format")
     parser.add_argument('-out-res', '--out-results-file', required=True, type=str, help="output file with SLAM poses in kitti format")
 
+    parser.add_argument('-inter', '--use-interpolation', action='store_true', help="use interpolation to align matched poses")
+
     parser.add_argument('-transforms-source', '--transforms-source-file', type=str, help=".bag, .urdf or .launch file to read static transforms if needed")
     parser.add_argument('-out-trajectories', '--out-trajectories-rosbag-file', type=str, help="output .bag file to write gt and SLAM trajectories")
 
@@ -32,8 +34,8 @@ def build_parser():
     return parser
 
 
-def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files, results_topic,
-                                 out_gt_file, out_results_file, transforms_source_file=None, out_trajectories_rosbag_file=None,
+def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files, results_topic, out_gt_file, out_results_file,
+                                 use_interpolation=False, transforms_source_file=None, out_trajectories_rosbag_file=None,
                                  max_union_intersection_time_difference=0.5, max_time_error=0.03, max_time_step=0.23):
     if not osp.exists(osp.dirname(osp.realpath(out_gt_file))):
         os.makedirs(osp.dirname(osp.realpath(out_gt_file)))  # osp.realpath is needed because if out_gt_file is a file name in current directory,
@@ -70,13 +72,23 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
     if max_step > max_time_step:
         raise RuntimeError("Max step in matched poses is {:.3f}, but it should not be greater than {:.3f}".format(max_step, max_time_step))
 
-    # print("Aligning poses...")
-    # aligned_gt_poses, aligned_results_poses, aligned_timestamps = \
-    #     align_poses(matched_gt_poses, matched_gt_timestamps, matched_results_poses, matched_results_timestamps)
+    if use_interpolation:
+        print("Aligning poses...")
+        aligned_gt_poses, aligned_results_poses, aligned_timestamps = \
+            align_poses(matched_gt_poses, matched_gt_timestamps, matched_results_poses, matched_results_timestamps)
+        prepared_gt_poses = aligned_gt_poses
+        prepared_gt_timestamps = aligned_timestamps
+        prepared_results_poses = aligned_results_poses
+        prepared_results_timestamps = aligned_timestamps
+    else:
+        prepared_gt_poses = matched_gt_poses
+        prepared_gt_timestamps = matched_gt_timestamps
+        prepared_results_poses = matched_results_poses
+        prepared_results_timestamps = matched_results_timestamps
 
     print("Moving poses to the origin...")
-    move_first_pose_to_the_origin(matched_gt_poses)
-    move_first_pose_to_the_origin(matched_results_poses)
+    move_first_pose_to_the_origin(prepared_gt_poses)
+    move_first_pose_to_the_origin(prepared_results_poses)
 
     if gt_child_frame_id != results_child_frame_id:
         if not transforms_source_file:
@@ -88,16 +100,16 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
         ros_transform = tf_buffer.lookup_transform(results_child_frame_id, gt_child_frame_id, rospy.Time())
         transform = transform_to_numpy(ros_transform.transform)
         print("Transforming SLAM poses to gt frame...")
-        transform_poses(matched_results_poses, transform)
+        transform_poses(prepared_results_poses, transform)
 
     print("Writing poses in kitti format...")
-    write_poses(out_gt_file, matched_gt_poses)
-    write_poses(out_results_file, matched_results_poses)
+    write_poses(out_gt_file, prepared_gt_poses)
+    write_poses(out_results_file, prepared_results_poses)
 
     if out_trajectories_rosbag_file:
         print("Writing trajectories in rosbag...")
-        gt_path = poses_to_ros_path(matched_gt_poses, matched_gt_timestamps)
-        results_path = poses_to_ros_path(matched_results_poses, matched_results_timestamps)
+        gt_path = poses_to_ros_path(prepared_gt_poses, prepared_gt_timestamps)
+        results_path = poses_to_ros_path(prepared_results_poses, prepared_results_timestamps)
         with rosbag.Bag(out_trajectories_rosbag_file, 'w') as out_bag:
             out_bag.write('/gt_path', gt_path, gt_path.header.stamp)
             out_bag.write('/results_path', results_path, results_path.header.stamp)
