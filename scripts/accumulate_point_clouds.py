@@ -119,7 +119,7 @@ def odometry_received(odom):
     transform.transform.translation.z = odom.pose.pose.position.z
     transform.transform.rotation = odom.pose.pose.orientation
 
-    local_tf_buffer.set_transform(odom, 'default_authority')
+    local_tf_buffer.set_transform(transform, 'default_authority')
     
 
 def transform_received(transform):
