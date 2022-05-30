@@ -54,7 +54,7 @@ def accumulate_point_clouds(new_point_cloud_msg):
                     new_point_cloud_msg.header.stamp, timeout=rospy.Duration.from_sec(transform_waiting_time))
         except Exception as e:
             if accumulate_point_clouds.first:
-                rospy.logwarn("Waiting for the first transform. Reason: {}".format(str(e)))
+                rospy.logwarn("Waiting for the first transform. Failed on lookup transform. Reason: {}".format(str(e)))
                 return
             if keep_running:
                 raise
@@ -69,7 +69,7 @@ def accumulate_point_clouds(new_point_cloud_msg):
             sensor_tf = tf_buffer.lookup_transform(odometry_child_frame_id, new_point_cloud_msg.header.frame_id, new_point_cloud_msg.header.stamp)
         except Exception as e:
             if accumulate_point_clouds.first:
-                rospy.logwarn("Waiting for first transform. Reason: {}".format(str(e)))
+                rospy.logwarn("Waiting for the first transform. Failed on lookup transform. Reason: {}".format(str(e)))
                 return
             if keep_running:
                 raise
