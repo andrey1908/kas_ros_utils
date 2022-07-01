@@ -58,7 +58,7 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
     union_intersection_time_difference = get_union_intersection_time_difference(gt_timestamps, results_timestamps)
     print("Union intersection difference: {:.3f} s".format(union_intersection_time_difference))
     if union_intersection_time_difference > max_union_intersection_time_difference:
-        raise RuntimeError("Union intersection difference is {:.3f}, but it should not be greater than {:.3f}".format(
+        raise RuntimeError("Union intersection difference is {:.3f}, but max acceptable value is set to {:.3f}".format(
             union_intersection_time_difference, max_union_intersection_time_difference))
 
     print("Matching poses...")
@@ -70,7 +70,7 @@ def prepare_poses_for_evaluation(gt_rosbag_files, gt_topic, results_rosbag_files
     max_step = max(get_max_time_step(matched_gt_timestamps), get_max_time_step(matched_results_timestamps))
     print('Max step in matched timestamps: {:.3f} s'.format(max_step))
     if max_step > max_time_step:
-        raise RuntimeError("Max step in matched poses is {:.3f}, but it should not be greater than {:.3f}".format(max_step, max_time_step))
+        raise RuntimeError("Max step in matched poses is {:.3f}, but max acceptable value is set to {:.3f}".format(max_step, max_time_step))
 
     if use_interpolation:
         print("Aligning poses...")
