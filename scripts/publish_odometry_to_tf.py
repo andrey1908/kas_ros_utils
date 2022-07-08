@@ -12,7 +12,7 @@ def build_parser():
     return parser
 
 
-def publish_transform(odom: Odometry):
+def publish_odometry_to_tf(odom: Odometry):
     global tf_broadcaster
 
     transform = TransformStamped()
@@ -37,8 +37,8 @@ if __name__ == '__main__':
 
     odom_topic = args.odom_topic
     
-    rospy.init_node('publish_transforms')
+    rospy.init_node('publish_odometry_to_tf')
     tf_broadcaster = tf2_ros.TransformBroadcaster()
-    rospy.Subscriber(odom_topic, Odometry, publish_transform)
+    rospy.Subscriber(odom_topic, Odometry, publish_odometry_to_tf)
     rospy.spin()
     
