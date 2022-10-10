@@ -90,7 +90,7 @@ def odom_received(odom):
         transform.header.stamp = odom.header.stamp
         transform.header.frame_id = new_odom_frame_name
         transform.child_frame_id = new_child_frame
-        transform.transform = numpy_to_transform(new_ros_pose)
+        transform.transform = numpy_to_transform(new_pose)
         tfBroadcaster.sendTransform(transform)
 
 
