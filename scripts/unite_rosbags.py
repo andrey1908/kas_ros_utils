@@ -24,4 +24,5 @@ def unite_rosbags(rosbag_files, out_rosbag_file, topics=None):
 if __name__ == '__main__':
     parser = build_parser()
     args = parser.parse_args()
+    unite_rosbags(**vars(args))
 
