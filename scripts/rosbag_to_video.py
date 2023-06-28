@@ -17,7 +17,7 @@ def build_parser():
     return parser
 
 
-def make_video_from_rosbag_images(rosbag_file, topic, out_file, fourcc='mp4v', fps=30):
+def rosbag_to_video(rosbag_file, topic, out_file, fourcc='mp4v', fps=30):
     bridge = CvBridge()
     with rosbag.Bag(rosbag_file, 'r') as bag:
         out = None
@@ -37,4 +37,4 @@ def make_video_from_rosbag_images(rosbag_file, topic, out_file, fourcc='mp4v', f
 if __name__ == '__main__':
     parser = build_parser()
     args = parser.parse_args()
-    make_video_from_rosbag_images(**vars(args))
+    rosbag_to_video(**vars(args))
