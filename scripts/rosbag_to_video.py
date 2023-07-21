@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import rosbag
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CompressedImage
 from cv_bridge import CvBridge
 import cv2
 from tqdm import tqdm
@@ -27,7 +27,12 @@ def rosbag_to_video(rosbag_file, topic, out_file, fourcc='mp4v', fps=30):
             return
         messages_reader = bag.read_messages(topic)
         for _, msg, t in tqdm(messages_reader, total=messages_number):
-            image = bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+            if msg._type == "sensor_msgs/Image":
+                image = bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
+            elif msg._type == "sensor_msgs/CompressedImage":
+                image = bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='passthrough')
+            else:
+                raise RuntimeError(f"Unknown message type {msg._type}")
             if out is None:
                 out = cv2.VideoWriter(out_file, cv2.VideoWriter_fourcc(*fourcc), fps, (image.shape[1], image.shape[0]))
             out.write(image)
