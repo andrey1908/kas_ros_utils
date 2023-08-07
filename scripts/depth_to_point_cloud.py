@@ -1,14 +1,25 @@
 #!/usr/bin/env python
 
 import argparse
+import sys
 import rospy
 import message_filters
 from sensor_msgs.msg import CameraInfo, Image, PointCloud2
 from ros_numpy.point_cloud2 import array_to_pointcloud2
 from cv_bridge import CvBridge
-from scipy.ndimage import minimum_filter
 import numpy as np
 from time_measurer import TimeMeasurer
+
+try:  # prefer using torch since it's faster
+    import torch
+except ImportError:
+    from scipy.ndimage import minimum_filter
+    print(
+        "\033[1;93m"
+        "Could not import torch module. "
+        "Will use scipy.ndimage instead, but it's slower. "
+        "Recommend to install torch for better performance."
+        "\033[0m")
 
 
 def build_parser():
@@ -26,6 +37,11 @@ class DepthToPointCloud:
 
         self.bridge = CvBridge()
 
+        if 'torch' in sys.modules:
+            self.pool_fn = self._pool_depth_with_torch
+        else:
+            self.pool_fn = self._pool_depth_with_scipy
+
         self.convertion_tm = TimeMeasurer("  convertion")
         self.total_tm = TimeMeasurer("total", end="\n")
         self.tms = [self.convertion_tm, self.total_tm]
@@ -37,6 +53,18 @@ class DepthToPointCloud:
         if depth.dtype == float:
             return 1
         raise RuntimeError(f"Unknown depth dtype: {depth.dtype}")
+
+    def _pool_depth_with_torch(self, depth):
+        depth = np.expand_dims(depth, axis=0)
+        max_pool_fn = torch.nn.MaxPool2d(self.pool_size)
+        pooled = -max_pool_fn(-torch.from_numpy(depth)).numpy().squeeze()
+        return pooled
+
+    def _pool_depth_with_scipy(self, depth):
+        pooled = minimum_filter(depth, size=self.pool_size,
+            origin=-(self.pool_size // 2), mode='constant', cval=np.inf)
+        pooled = pooled[::self.pool_size, ::self.pool_size]
+        return pooled
 
     def depth_to_point_cloud(self, camera_info_msg: CameraInfo, depth_msg: Image):
         with self.total_tm:
@@ -51,9 +79,7 @@ class DepthToPointCloud:
                 invalid = (depth == 0) | np.isnan(depth)
                 depth[invalid] = np.inf
 
-                pooled = minimum_filter(depth, size=self.pool_size,
-                    origin=-(self.pool_size // 2), mode='constant', cval=np.inf)
-                pooled = pooled[::self.pool_size, ::self.pool_size]
+                pooled = self.pool_fn(depth)
                 K = np.array(camera_info_msg.K).reshape(3, 3)
                 K /= self.pool_size
                 K[2, 2] = 1
