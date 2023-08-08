@@ -76,7 +76,7 @@ class DepthToPointCloud:
                 factor = DepthToPointCloud._get_depth_factor(depth)
                 depth = depth * factor
 
-                invalid = (depth == 0) | np.isnan(depth)
+                invalid = (depth <= 0) | ~np.isfinite(depth)
                 depth[invalid] = np.inf
 
                 pooled = self.pool_fn(depth)
