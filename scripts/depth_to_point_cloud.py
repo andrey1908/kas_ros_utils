@@ -8,7 +8,7 @@ from sensor_msgs.msg import CameraInfo, Image, PointCloud2
 from ros_numpy.point_cloud2 import array_to_pointcloud2
 from cv_bridge import CvBridge
 import numpy as np
-from time_measurer import TimeMeasurer
+from kas_utils.time_measurer import TimeMeasurer
 
 try:  # prefer using torch since it's faster
     import torch
@@ -44,7 +44,6 @@ class DepthToPointCloud:
 
         self.convertion_tm = TimeMeasurer("  convertion")
         self.total_tm = TimeMeasurer("total", end="\n")
-        self.tms = [self.convertion_tm, self.total_tm]
 
     @staticmethod
     def _get_depth_factor(depth):
@@ -136,11 +135,8 @@ if __name__ == "__main__":
 
     rospy.init_node("depth_to_point_cloud")
     node = DepthToPointCloud_node(**vars(args))
-    TimeMeasurer.hide = True
 
     print("Spinning...")
     rospy.spin()
 
     print()
-    for tm in node.tms:
-        tm.print()
