@@ -1,127 +1,52 @@
 #!/usr/bin/env python
 
 import argparse
-import sys
 import rospy
-import message_filters
 from sensor_msgs.msg import CameraInfo, Image, PointCloud2
 from ros_numpy.point_cloud2 import array_to_pointcloud2
 from cv_bridge import CvBridge
 import numpy as np
 from kas_utils.time_measurer import TimeMeasurer
-
-try:  # prefer using torch since it's faster
-    import torch
-except ImportError:
-    from scipy.ndimage import minimum_filter
-    print(
-        "\033[1;93m"
-        "Could not import torch module. "
-        "Will use scipy.ndimage instead, but it's slower. "
-        "Recommend to install torch for better performance."
-        "\033[0m")
+from kas_utils.depth_to_point_cloud import DepthToPointCloud
 
 
 def build_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-camera-info', '--camera-info-topic', type=str, required=True)
+    parser.add_argument('-depth-info', '--depth-info-topic', type=str, required=True)
     parser.add_argument('-depth', '--depth-topic', type=str, required=True)
     parser.add_argument('--pool-size', type=int, default=8)
     parser.add_argument('-out', '--out-topic', type=str, required=True)
     return parser
 
 
-class DepthToPointCloud:
-    def __init__(self, pool_size=8):
-        self.pool_size = pool_size
-
-        self.bridge = CvBridge()
-
-        if 'torch' in sys.modules:
-            self.pool_fn = self._pool_depth_with_torch
-        else:
-            self.pool_fn = self._pool_depth_with_scipy
-
-        self.convertion_tm = TimeMeasurer("  convertion")
-        self.total_tm = TimeMeasurer("total", end="\n")
-
-    @staticmethod
-    def _get_depth_factor(depth):
-        if depth.dtype == np.uint16:
-            return 0.001
-        if depth.dtype == float:
-            return 1
-        raise RuntimeError(f"Unknown depth dtype: {depth.dtype}")
-
-    def _pool_depth_with_torch(self, depth):
-        depth = np.expand_dims(depth, axis=0)
-        max_pool_fn = torch.nn.MaxPool2d(self.pool_size)
-        pooled = -max_pool_fn(-torch.from_numpy(depth)).numpy().squeeze()
-        return pooled
-
-    def _pool_depth_with_scipy(self, depth):
-        pooled = minimum_filter(depth, size=self.pool_size,
-            origin=-(self.pool_size // 2), mode='constant', cval=np.inf)
-        pooled = pooled[::self.pool_size, ::self.pool_size]
-        return pooled
-
-    def depth_to_point_cloud(self, camera_info_msg: CameraInfo, depth_msg: Image):
-        with self.total_tm:
-            assert camera_info_msg.header.frame_id == depth_msg.header.frame_id
-            assert all(x == 0 for x in camera_info_msg.D), "Only rect depth images are supported"
-            depth = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding="passthrough")
-
-            with self.convertion_tm:
-                factor = DepthToPointCloud._get_depth_factor(depth)
-                depth = depth * factor
-
-                invalid = (depth <= 0) | ~np.isfinite(depth)
-                depth[invalid] = np.inf
-
-                pooled = self.pool_fn(depth)
-                K = np.array(camera_info_msg.K).reshape(3, 3)
-                K /= self.pool_size
-                K[2, 2] = 1
-                fx = K[0, 0]
-                fy = K[1, 1]
-                cx = K[0, 2]
-                cy = K[1, 2]
-
-                valid = np.isfinite(pooled)
-                z = pooled[valid]
-                v, u = np.where(valid)
-                x = (u - cx) / fx * z
-                y = (v - cy) / fy * z
-
-                x = x.astype(np.float32)
-                y = y.astype(np.float32)
-                z = z.astype(np.float32)
-
-            points = np.rec.fromarrays([x, y, z], names=['x', 'y', 'z'])
-            pc_msg = array_to_pointcloud2(points,
-                stamp=depth_msg.header.stamp, frame_id=depth_msg.header.frame_id)
-            return pc_msg
-
-
 class DepthToPointCloud_node(DepthToPointCloud):
-    def __init__(self, camera_info_topic, depth_topic, out_topic, pool_size=8):
-        super().__init__(pool_size=pool_size)
+    def __init__(self, depth_info_topic, depth_topic, out_topic, pool_size=8):
+        print("Waiting for depth info message...")
+        depth_info_msg = rospy.wait_for_message(depth_info_topic, CameraInfo)
+        K = np.array(depth_info_msg.K).reshape(3, 3)
+        D = np.array(depth_info_msg.D)
 
-        self.camera_info_topic = camera_info_topic
+        super().__init__(K, D, pool_size=pool_size, return_named_point_cloud=True)
+
         self.depth_topic = depth_topic
         self.out_topic = out_topic
 
-        self.camera_info_sub = message_filters.Subscriber(camera_info_topic, CameraInfo)
-        self.depth_sub = message_filters.Subscriber(depth_topic, Image)
-        self.sync_sub = message_filters.TimeSynchronizer(
-            [self.camera_info_sub, self.depth_sub], 10)
-        self.sync_sub.registerCallback(self.callback)
+        self.depth_sub = rospy.Subscriber(self.depth_topic, Image, self.callback)
+        self.point_cloud_pub = rospy.Publisher(self.out_topic, PointCloud2, queue_size=10)
 
-        self.pc_pub = rospy.Publisher(self.out_topic, PointCloud2, queue_size=10)
+        self.bridge = CvBridge()
 
-    def callback(self, camera_info_msg: CameraInfo, depth_msg: Image):
-        pc_msg = self.depth_to_point_cloud(camera_info_msg, depth_msg)
-        self.pc_pub.publish(pc_msg)
+        self.convertion_tm = TimeMeasurer("  convertion")
+        self.total_tm = TimeMeasurer("total")
+
+    def callback(self, depth_msg: Image):
+        with self.total_tm:
+            depth = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding="passthrough")
+            with self.convertion_tm:
+                point_cloud = self.convert(depth)
+            point_cloud_msg = array_to_pointcloud2(point_cloud,
+                stamp=depth_msg.header.stamp, frame_id=depth_msg.header.frame_id)
+            self.point_cloud_pub.publish(point_cloud_msg)
 
 
 if __name__ == "__main__":
