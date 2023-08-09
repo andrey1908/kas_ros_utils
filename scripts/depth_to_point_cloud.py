@@ -44,6 +44,8 @@ class DepthToPointCloud_node(DepthToPointCloud):
             depth = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding="passthrough")
             with self.convertion_tm:
                 point_cloud = self.convert(depth)
+                point_cloud = point_cloud.astype(
+                    [('x', np.float32), ('y', np.float32), ('z', np.float32)])
             point_cloud_msg = array_to_pointcloud2(point_cloud,
                 stamp=depth_msg.header.stamp, frame_id=depth_msg.header.frame_id)
             self.point_cloud_pub.publish(point_cloud_msg)
