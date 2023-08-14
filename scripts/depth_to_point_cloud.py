@@ -51,7 +51,7 @@ class DepthToPointCloud_node(DepthToPointCloud):
                 point_cloud = self.convert(depth)
                 assert point_cloud.dtype == np.float32
                 dtype = [('x', np.float32), ('y', np.float32), ('z', np.float32)]
-                point_cloud = point_cloud.view(dtype).reshape(-1)
+                point_cloud = point_cloud.view(dtype).squeeze()
             point_cloud_msg = array_to_pointcloud2(point_cloud,
                 stamp=depth_msg.header.stamp, frame_id=depth_msg.header.frame_id)
             self.point_cloud_pub.publish(point_cloud_msg)
