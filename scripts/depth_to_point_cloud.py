@@ -25,8 +25,13 @@ class DepthToPointCloud_node(DepthToPointCloud):
         depth_info_msg = rospy.wait_for_message(depth_info_topic, CameraInfo)
         K = np.array(depth_info_msg.K).reshape(3, 3)
         D = np.array(depth_info_msg.D)
+        assert np.all(D == 0), "Distorted depth images are not supported."
 
-        super().__init__(K, D, pool_size=pool_size, return_named_point_cloud=True)
+        fx = K[0, 0]
+        fy = K[1, 1]
+        cx = K[0, 2]
+        cy = K[1, 2]
+        super().__init__(fx, fy, cx, cy, pool_size)
 
         self.depth_topic = depth_topic
         self.out_topic = out_topic
@@ -44,8 +49,9 @@ class DepthToPointCloud_node(DepthToPointCloud):
             depth = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding="passthrough")
             with self.convertion_tm:
                 point_cloud = self.convert(depth)
-                point_cloud = point_cloud.astype(
-                    [('x', np.float32), ('y', np.float32), ('z', np.float32)])
+                assert point_cloud.dtype == np.float32
+                dtype = [('x', np.float32), ('y', np.float32), ('z', np.float32)]
+                point_cloud = point_cloud.view(dtype).reshape(-1)
             point_cloud_msg = array_to_pointcloud2(point_cloud,
                 stamp=depth_msg.header.stamp, frame_id=depth_msg.header.frame_id)
             self.point_cloud_pub.publish(point_cloud_msg)
