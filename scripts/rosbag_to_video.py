@@ -28,9 +28,9 @@ def rosbag_to_video(rosbag_file, topic, out_file, fourcc='mp4v', fps=30):
         messages_reader = bag.read_messages(topic)
         for _, msg, t in tqdm(messages_reader, total=messages_number):
             if msg._type == "sensor_msgs/Image":
-                image = bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
+                image = bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
             elif msg._type == "sensor_msgs/CompressedImage":
-                image = bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='passthrough')
+                image = bridge.compressed_imgmsg_to_cv2(msg, desired_encoding='bgr8')
             else:
                 raise RuntimeError(f"Unknown message type {msg._type}")
             if out is None:
