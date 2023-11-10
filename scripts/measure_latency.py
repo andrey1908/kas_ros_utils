@@ -24,7 +24,8 @@ def read_message_latency(msg):
 def measure_latency(topic):
     data_type = rostopic.get_topic_type(topic, blocking=True)[0]
     data_class = roslib.message.get_message_class(data_type)
-    rospy.Subscriber(topic, data_class, read_message_latency)
+    rospy.Subscriber(topic, data_class, read_message_latency,
+        queue_size=1, buff_size=2 ** 24)
     print("Reading messages...")
     rospy.spin()
     global measurements
