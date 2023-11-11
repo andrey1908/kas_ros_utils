@@ -36,13 +36,16 @@ class DepthToPointCloud_node(DepthToPointCloud):
         self.depth_topic = depth_topic
         self.out_topic = out_topic
 
-        self.depth_sub = rospy.Subscriber(self.depth_topic, Image, self.callback)
         self.point_cloud_pub = rospy.Publisher(self.out_topic, PointCloud2, queue_size=10)
 
         self.bridge = CvBridge()
 
         self.convertion_tm = TimeMeasurer("  convertion")
         self.total_tm = TimeMeasurer("total")
+
+    def start(self):
+        self.depth_sub = rospy.Subscriber(self.depth_topic, Image, self.callback,
+            queue_size=1, buff_size=2 ** 24)
 
     def callback(self, depth_msg: Image):
         with self.total_tm:
@@ -68,6 +71,7 @@ if __name__ == "__main__":
 
     rospy.init_node("depth_to_point_cloud")
     node = DepthToPointCloud_node(**vars(args))
+    node.start()
 
     print("Spinning...")
     rospy.spin()
