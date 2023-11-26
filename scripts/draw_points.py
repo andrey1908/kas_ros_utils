@@ -44,7 +44,7 @@ def callback(image_msg, point_cloud_msg):
 
     draw_points(image, K, D, points)
 
-    out_image_msg = bridge.cv2_to_imgmsg(image)
+    out_image_msg = bridge.cv2_to_imgmsg(image, encoding="bgr8")
     out_image_msg.header = image_msg.header
     pub.publish(out_image_msg)
 
