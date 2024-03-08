@@ -42,7 +42,7 @@ def callback(image_msg, point_cloud_msg):
     t = tf_mat[:3, 3]
     points = np.matmul(R, points.T).T + t
 
-    draw_points(image, K, D, points)
+    draw_points(image, K, D, points, min_distance=2.0, max_distance=15.0)
 
     out_image_msg = bridge.cv2_to_imgmsg(image, encoding="bgr8")
     out_image_msg.header = image_msg.header
